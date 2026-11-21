@@ -653,6 +653,8 @@ def cleanup_obsolete_generation(conn: sqlite3.Connection, scope: str, generation
 
 def clear_generation_data(conn: sqlite3.Connection, scope: str, generation: int, *, commit=True):
     if scope == 'cards':
+        from core.data.card_list_projection import clear
+        clear(conn, generation)
         conn.execute('DELETE FROM index_card_build_changes WHERE generation=?', (generation,))
     entity_prefix, entity_id_pattern, stats_scope = _scope_generation_filters(scope)
     entity_ids = [
@@ -703,6 +705,8 @@ def clear_generation_data(conn: sqlite3.Connection, scope: str, generation: int,
 
 
 SCAN_STATE_LAST_FULL_SCAN_AT = 'last_full_scan_at'
+SCAN_STATE_CARD_ROOT = 'last_full_scan_card_root'
+SCAN_STATE_CARD_ROOT_EPOCH = 'card_metadata_root_epoch'
 
 # FTS 搜索内容列的格式版本。写入侧改变内容形态时必须 +1，否则老索引不会重建，
 # 搜索会静默失效（例如中文子串在未切分的旧内容上永远命中 0 条）。

@@ -494,8 +494,16 @@ class DataMigrationService:
             # SQLite 自动移除 shadow 表，启动初始化会重新建立可重建索引。
             virtuals = list(conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND sql LIKE 'CREATE VIRTUAL TABLE%'").fetchall())
             for (table,) in virtuals:
-                if table.startswith(('index_', 'plugin_')):
+                if table.startswith(('index_', 'plugin_')) or table == 'card_list_fts':
                     conn.execute('DROP TABLE ' + _quote(table))
+            # Projection triggers refer to the local generation. A restored library builds a new one.
+            for (trigger,) in conn.execute("SELECT name FROM sqlite_master WHERE type='trigger' "
+                                          "AND name GLOB 'card_list_*'").fetchall():
+                conn.execute('DROP TRIGGER ' + _quote(trigger))
+            for (table,) in conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND "
+                                        "name GLOB 'card_list_*'"
+                                        ).fetchall():
+                conn.execute('DROP TABLE ' + _quote(table))
             tables = [r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")]
             if 'ui_namespace_records' in tables:
                 from core.data.local_state_repository import _export_at, _replace_namespace

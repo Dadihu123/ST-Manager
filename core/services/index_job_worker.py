@@ -9,7 +9,7 @@ import uuid
 from collections import deque
 from contextlib import ExitStack, closing
 
-from core.config import DEFAULT_DB_PATH
+from core.config import CARDS_FOLDER, DEFAULT_DB_PATH
 from core.context import ctx
 from core.data.index_runtime_store import (
     SEARCH_CONTENT_FORMAT_VERSION, cleanup_obsolete_generation, ensure_index_runtime_schema,
@@ -574,6 +574,12 @@ def worker_loop(*, recover_running=False):
                         if _database_locked(exc):
                             interrupted_claim = rows[0]['claim_token']
                         raise
+                from core.data.card_list_projection import drain_active_batch
+                try:
+                    if drain_active_batch(DEFAULT_DB_PATH, os.fspath(CARDS_FOLDER)):
+                        wait_for_work = False
+                except OSError as exc:
+                    logger.warning('卡片列表暂未完成后台对账: %s', exc)
         except sqlite3.OperationalError as exc:
             if not _database_locked(exc):
                 raise
@@ -680,7 +686,12 @@ def apply_card_increment_and_ack(conn, card_id, source_path='', *, remove_entity
         ack_ids.extend(job[0] for job in jobs if _projection_job_matches(
             json.loads(job[1] or '{}'), ui_key, ui_revision, source_revision))
         table = conn.execute("SELECT 1 FROM sqlite_master WHERE name='card_ui_projections'").fetchone()
+        from core.data import card_list_projection as logical
+        metadata_dirty = logical.installed(conn) and conn.execute(
+            'SELECT 1 FROM card_list_dirty WHERE generation=? AND key IN (?,?) LIMIT 1',
+            (generation, card_id, ui_key)).fetchone()
         already_applied = (not file_metadata_applied and not remove_entity_ids and table
+                           and not metadata_dirty
                            and card_projection_matches(conn, card_id, ui_key, ui_revision, source_revision, generation))
         result = True
         if not already_applied:
@@ -788,18 +799,21 @@ def _file_commit_evidence(path):
             'mtime_ns': after.st_mtime_ns, 'sha256': digest.hexdigest()}
 
 
-def pending_card_file_ids(conn):
+def pending_card_file_ids(conn, *, cards_root=None):
     """Scanners must leave identities owned by unfinished file recovery intact."""
     protected = set()
-    for entity_id, payload_json in conn.execute(
-            "SELECT entity_id,payload_json FROM index_jobs WHERE job_type='upsert_card' "
+    from core.utils.paths import is_under_base
+
+    for entity_id, source_path, payload_json in conn.execute(
+            "SELECT entity_id,source_path,payload_json FROM index_jobs WHERE job_type='upsert_card' "
             "AND status IN ('pending','running','failed')"):
         payload = json.loads(payload_json or '{}')
         if payload.get('refresh_file'):
+            if cards_root and source_path and not is_under_base(source_path, cards_root):
+                continue
             protected.update(value for value in [entity_id, payload.get('old_id'),
                              *(payload.get('remove_entity_ids') or [])] if value)
-            from core.config import CARDS_FOLDER
-            protected.update(os.path.relpath(item[key], CARDS_FOLDER).replace('\\', '/')
+            protected.update(os.path.relpath(item[key], cards_root or CARDS_FOLDER).replace('\\', '/')
                              for item in payload.get('companions', []) for key in ('source', 'target'))
     return protected
 
@@ -932,9 +946,12 @@ def prepare_card_path_intents(source, destination, *, bundle_conversion=False):
 
 def process_card_job(row, payload):
     from core.config import CARDS_FOLDER
+    from core.data import card_list_projection as logical
     from core.data.local_state_repository import card_projection_matches, record_card_projection
     from core.services.card_operation_lock import card_locks
     from core.services.index_build_service import _owner_file_confirmed_missing
+    from core.utils.paths import is_under_base
+    root = os.fspath(CARDS_FOLDER)
     companion_ids = [os.path.relpath(item[key], CARDS_FOLDER).replace('\\', '/')
                      for item in payload.get('companions', []) for key in ('source', 'target')]
     with card_locks([row['entity_id'], payload.get('old_id'), *(payload.get('remove_entity_ids') or []),
@@ -943,6 +960,13 @@ def process_card_job(row, payload):
             # 同步保存已完成的领取任务不再执行；只按自己的 id 完成。
             state = conn.execute('SELECT status FROM index_jobs WHERE id=?', (row['id'],)).fetchone()
             if state and state[0] == 'done':
+                return
+            scanned_root = logical.metadata_root(conn)
+            if scanned_root and (not logical.metadata_matches(conn, root)
+                                 or row['source_path'] and not is_under_base(row['source_path'], root)):
+                if payload.get('refresh_file'):
+                    raise RuntimeError('待恢复角色卡所属目录未激活')
+                # Derived work from a previous root is superseded by a full scan and rebuild.
                 return
             from core.utils.source_revision import build_file_source_revision
             old_id = payload.get('old_id')
@@ -1064,6 +1088,8 @@ def process_card_job(row, payload):
                         conn.execute("INSERT INTO index_jobs(job_type,entity_id,source_path) "
                                      "VALUES ('upsert_world_embedded',?,?)", (row['entity_id'], row['source_path']))
             _check_prepared_ui(conn, ui_key, ui_revision)
+            if not logical.metadata_matches(conn, root):
+                raise RuntimeError('索引任务执行期间卡片目录已变化')
             generation = get_active_generation(conn, 'cards')
             projection_table = conn.execute("SELECT 1 FROM sqlite_master WHERE name='card_ui_projections'").fetchone()
             cleanup = set(payload.get('remove_entity_ids') or []) | ({old_id} if old_id else set())

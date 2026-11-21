@@ -5,13 +5,19 @@ import threading
 import sqlite3
 import json
 import logging
+from contextlib import closing
+from uuid import uuid4
 
 # === 基础设施 ===
 from core.config import BASE_DIR, CARDS_FOLDER, DEFAULT_DB_PATH, current_config, load_config
 from core.context import ctx
+from core.data import card_list_projection as logical
 from core.data.index_runtime_store import (
+    SCAN_STATE_CARD_ROOT,
+    SCAN_STATE_CARD_ROOT_EPOCH,
     SCAN_STATE_LAST_FULL_SCAN_AT,
     ensure_index_runtime_schema,
+    get_active_generation,
     get_scan_state,
     set_scan_state,
 )
@@ -44,6 +50,7 @@ from core.utils.hash import get_file_hash_and_size
 from core.utils.text import calculate_token_count
 from core.utils.data import get_wi_meta, sanitize_for_utf8
 from core.utils.format_validation import is_valid_character_card_data
+from core.utils.paths import is_under_base
 
 logger = logging.getLogger(__name__)
 
@@ -538,10 +545,6 @@ def start_fs_watcher():
 
     class Handler(FileSystemEventHandler):
         def on_any_event(self, event):
-            # 忽略目录本身的修改事件，只关注文件
-            if event.is_directory:
-                return
-
             # 仅处理真正会改变索引结果的写类事件，避免读取/打开文件触发无意义重建
             if str(getattr(event, 'event_type', '') or '').lower() not in WRITE_LIKE_EVENT_TYPES:
                 return
@@ -553,6 +556,13 @@ def start_fs_watcher():
             event_type = str(getattr(event, 'event_type', '') or '').lower()
             source_path = str(getattr(event, 'src_path', '') or '')
             destination_path = str(getattr(event, 'dest_path', '') or '')
+            if event.is_directory or any(os.path.basename(path) == '.bundle'
+                                         for path in (source_path, destination_path)):
+                if (event_type != 'modified' or not event.is_directory) and any(
+                        path and is_under_base(path, os.fspath(CARDS_FOLDER))
+                        for path in (source_path, destination_path)):
+                    request_scan(reason='watchdog_card_directory')
+                return
             source_worldinfo = classify_worldinfo_path(source_path)
             destination_worldinfo = classify_worldinfo_path(destination_path)
 
@@ -726,7 +736,7 @@ def _perform_scan_logic(reason=''):
     started_at = time.monotonic()
     _set_scan_progress(True, message=reason or 'full_scan', progress=0, error='')
     try:
-        _perform_scan_logic_inner(db_path, cards_root)
+        changed_root = _perform_scan_logic_inner(db_path, cards_root)
     except OSError as exc:
         message = f'目录不可访问，已保留原有数据：{exc.filename or cards_root}'
         _set_scan_progress(False, message=message, error=message)
@@ -738,6 +748,11 @@ def _perform_scan_logic(reason=''):
         raise
     else:
         _record_full_scan_completed()
+        with closing(sqlite3.connect(db_path, timeout=30)) as conn:
+            if logical.installed(conn) and (changed_root or logical.root_changed(
+                    conn, get_active_generation(conn, 'cards'), cards_root)):
+                enqueue_index_job('rebuild_scope', payload={'scope': 'cards', 'reason': 'card_root_changed'})
+        schedule_reload(reason='scan_completed')
     finally:
         _set_scan_progress(False, progress=100)
 
@@ -780,8 +795,12 @@ def _perform_scan_logic_inner(db_path, cards_root):
         # makes a later WAL snapshot upgrade fail and roll back, never overwrite it.
         conn.commit()
         conn.execute('BEGIN')
+        generation = get_active_generation(conn, 'cards')
+        previous_root = logical.metadata_root(conn)
+        metadata_root_changed = bool(previous_root and previous_root != logical.root_key(cards_root))
+        root_changed = logical.root_changed(conn, generation, cards_root) or metadata_root_changed
         from core.services.index_job_worker import pending_card_file_ids
-        protected_ids = pending_card_file_ids(conn)
+        protected_ids = pending_card_file_ids(conn, cards_root=cards_root)
         
         # 1. 获取数据库当前状态 (用于比对)
         try:
@@ -819,7 +838,8 @@ def _perform_scan_logic_inner(db_path, cards_root):
         replaced_card_uids = {}
         deleted_card_ids = set()
         fs_found_files = set(protected_ids)
-        rename_candidates = {key: value for key, value in db_files_map.items() if key not in protected_ids}
+        rename_candidates = ({} if root_changed else
+                             {key: value for key, value in db_files_map.items() if key not in protected_ids})
         # ui_data 读取失败时不中止整轮扫描，只是本次不写回 UI 数据，
         # 避免把空数据覆盖到磁盘上的真实内容。
         try:
@@ -835,14 +855,17 @@ def _perform_scan_logic_inner(db_path, cards_root):
         scanned_dir_count = 0
         scanned_file_count = 0
         progress_step = 0
+        logical_folders = {}
         for root, dirs, files in walk_directory_strict(cards_root):
             scanned_dir_count += 1
-            rel_path = os.path.relpath(root, CARDS_FOLDER)
+            rel_path = os.path.relpath(root, cards_root)
             
             if rel_path == ".":
                 category = ""
             else:
                 category = rel_path.replace('\\', '/')
+                if not any(part.startswith('.') for part in category.split('/')):
+                    logical_folders[category] = int('.bundle' in files)
             
             for file in files:
                 file = sanitize_for_utf8(file)
@@ -875,6 +898,8 @@ def _perform_scan_logic_inner(db_path, cards_root):
                     current_mtime = st.st_mtime
                     current_size = st.st_size
                 except OSError:
+                    if root_changed:
+                        raise
                     # 无法 stat（权限/被占用）：保留既有记录，避免误删用户数据。
                     fs_found_files.add(file_id)
                     continue
@@ -903,7 +928,7 @@ def _perform_scan_logic_inner(db_path, cards_root):
                     file_changed = True
                 else:
                     # 检查 mtime (容差 0.01s) 或 size
-                    if (current_mtime > (db_info['mtime'] + 0.01)) or (current_size != db_info['size']):
+                    if root_changed or current_mtime > db_info['mtime'] + 0.01 or current_size != db_info['size']:
                         need_update = True
                         file_changed = True
                     # 文件未变，但 token_count 缺失 -> 仅补全 token
@@ -923,6 +948,8 @@ def _perform_scan_logic_inner(db_path, cards_root):
                 # 仅在确实需要写入时才解析文件内容。
                 info, parse_status = extract_card_info_with_status(full_path)
                 if parse_status == CARD_INFO_UNREADABLE:
+                    if root_changed:
+                        raise OSError('新卡片目录中的文件不可读', full_path)
                     # 读取失败（IO 错误/损坏/被占用）：保留既有记录，不当作删除处理。
                     fs_found_files.add(file_id)
                     logger.warning('跳过暂时无法读取的文件，保留既有索引记录: %s', full_path)
@@ -950,7 +977,7 @@ def _perform_scan_logic_inner(db_path, cards_root):
                     token_count = calculate_token_count(calc_data)
                     has_wi, wi_name = get_wi_meta(data_block)
                     keep_fav = db_info['fav'] if db_info else 0
-                    stable_uid = normalize_card_uid(db_info.get('card_uid')) if db_info else ''
+                    stable_uid = normalize_card_uid(db_info.get('card_uid')) if db_info and not root_changed else ''
                     stable_uid = stable_uid or new_card_uid()
 
                     # 优化：仅在文件真正变更时重置 hash，否则保留旧 hash (避免昂贵的 hash 计算)
@@ -1023,6 +1050,13 @@ def _perform_scan_logic_inner(db_path, cards_root):
                 if db_id not in renamed_card_ids:
                     deleted_card_ids.add(db_id)
 
+        if logical.root_key(cards_root) != logical.root_key(os.fspath(CARDS_FOLDER)):
+            raise OSError('扫描过程中卡片目录已变更')
+        if logical.eligible(conn, generation, cards_root):
+            logical.reconcile_folders(conn, generation, cards_root, logical_folders)
+        set_scan_state(conn, SCAN_STATE_CARD_ROOT, logical.root_key(cards_root), commit=False)
+        if metadata_root_changed:
+            set_scan_state(conn, SCAN_STATE_CARD_ROOT_EPOCH, uuid4().hex, commit=False)
         if changed_card_paths or deleted_card_ids:
             conn.commit()
             for card_id in sorted(changed_card_paths):
@@ -1084,6 +1118,7 @@ def _perform_scan_logic_inner(db_path, cards_root):
             ],
             db_path=DEFAULT_DB_PATH,
         )
+    return metadata_root_changed
 
 
 def _cleanup_misdetected_worldbook_rows(conn, cards_root, *, retained_card_ids=()):
@@ -1156,10 +1191,6 @@ def _should_run_startup_scan():
     - 距上次成功校验不足 ``startup_scan_min_interval_hours`` 小时时不重复扫描；
     - 数据库里还没有任何卡片记录时（首次运行/新库）仍需扫描以建立索引。
     """
-    if not current_config.get('enable_startup_scan', True):
-        logger.info('启动全量校验已在配置中关闭 (enable_startup_scan = false).')
-        return False
-
     try:
         interval_hours = float(current_config.get('startup_scan_min_interval_hours', 24) or 0)
     except (TypeError, ValueError):
@@ -1171,6 +1202,12 @@ def _should_run_startup_scan():
         with sqlite3.connect(DEFAULT_DB_PATH, timeout=30) as conn:
             conn.execute('PRAGMA journal_mode=WAL;')
             ensure_index_runtime_schema(conn)
+            if (logical.root_changed(conn, get_active_generation(conn, 'cards'), os.fspath(CARDS_FOLDER))
+                    or not logical.metadata_matches(conn, os.fspath(CARDS_FOLDER))):
+                return True
+            if not current_config.get('enable_startup_scan', True):
+                logger.info('启动全量校验已在配置中关闭 (enable_startup_scan = false).')
+                return False
             last_scan_at = float(
                 get_scan_state(conn, SCAN_STATE_LAST_FULL_SCAN_AT, '0') or 0
             )

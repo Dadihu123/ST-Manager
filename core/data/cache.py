@@ -564,9 +564,9 @@ class GlobalMetadataCache:
         try:
             physical_folders = set()
             physical_bundle_dirs = set()
+            folders_complete = True
             try:
-                walker = walk_directory_strict if strict else os.walk
-                for root, dirs, files in walker(CARDS_FOLDER):
+                for root, dirs, files in walk_directory_strict(CARDS_FOLDER):
                     # 排除以 . 开头的隐藏目录 (如 .trash, .git)
                     dirs[:] = [d for d in dirs if not d.startswith('.')]
 
@@ -585,6 +585,7 @@ class GlobalMetadataCache:
                         for d in dirs:
                             physical_folders.add(f"{current_rel}/{d}")
             except Exception as fs_e:
+                folders_complete = False
                 if strict:
                     raise
                 logger.error(f"Scanning physical folders failed: {fs_e}")
@@ -833,6 +834,14 @@ class GlobalMetadataCache:
                         new_cat_counts[f] = 0
                 
                 self.initialized = True
+            if folders_complete:
+                from core.data.card_list_projection import refresh_active_folders
+                try:
+                    refresh_active_folders(DEFAULT_DB_PATH, os.fspath(CARDS_FOLDER),
+                                           {folder: int(folder in physical_bundle_dirs)
+                                            for folder in physical_folders})
+                except (OSError, sqlite3.Error) as exc:
+                    logger.warning('卡片目录投影暂未更新: %s', exc)
             logger.info(f"Cache reloaded: {len(self.cards)} items (including bundles).")
                 
         except Exception as e:

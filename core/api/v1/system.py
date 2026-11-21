@@ -327,6 +327,7 @@ def api_settings_path_safety():
 @bp.route('/api/save_settings', methods=['POST'])
 def api_save_settings():
     try:
+        previous_cards_root = get_cards_folder()
         new_config, confirm_risky_paths = _extract_settings_save_payload(request.get_json(silent=True) or {})
         from core.services.android_path_service import validate_changed_directories
         validate_changed_directories(new_config)
@@ -385,6 +386,9 @@ def api_save_settings():
                 os.makedirs(chats_path)
             except Exception as e:
                 logger.warning(f"无法创建聊天目录 {chats_path}: {str(e)}")
+
+        if previous_cards_root != new_full_path:
+            request_scan(reason='card_root_changed')
 
         response = {'success': True}
         if evaluation['conflicts']:

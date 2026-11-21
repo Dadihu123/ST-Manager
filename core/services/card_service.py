@@ -1416,6 +1416,8 @@ def sync_folder_prefix_after_fs_move(*, conn, ui_data, old_path, new_path):
             complete_card_file_move(conn, new_sub_id, new_sub_full_path, old_id=old_sub_id,
                                     source_revision=source_revision)
 
+    from core.data.card_list_projection import publish_folder_change
+    publish_folder_change(DEFAULT_DB_PATH, os.fspath(CARDS_FOLDER), old=old_path, new=new_path)
     return moved_ids
 
 
@@ -1440,6 +1442,8 @@ def cleanup_deleted_cards_after_fs_delete(
             remove_entity_ids=[card_id],
             remove_owner_ids=[card_id],
         )
+        _apply_card_index_increment_now(card_id, source_paths_by_card_id.get(card_id, ''),
+                                        remove_entity_ids=[card_id])
 
 @card_operation_locked
 def sync_card_names_internal(

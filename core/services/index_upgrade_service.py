@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import random
@@ -9,17 +10,21 @@ from contextlib import closing, contextmanager, nullcontext
 from core.config import CARDS_FOLDER, DEFAULT_DB_PATH
 from core.context import ctx
 from core.data.index_runtime_store import (
+    SCAN_STATE_CARD_ROOT,
+    SCAN_STATE_CARD_ROOT_EPOCH,
     SEARCH_CONTENT_FORMAT_VERSION,
     activate_generation,
     allocate_build_generation,
     clear_generation_data,
     ensure_index_runtime_schema,
     get_active_generation,
+    get_scan_state,
     get_search_content_format_version,
     update_build_state,
     update_build_progress,
 )
 from core.services.index_build_service import (
+    apply_card_increment,
     build_cards_generation,
     build_worldinfo_generation,
     connect_index_db,
@@ -217,9 +222,11 @@ def rebuild_scope_generation(scope: str, reason: str = 'bootstrap', *, rebuild_j
     with snapshot as observed, closing(connect_index_db(DEFAULT_DB_PATH)) as conn, conn:
         if observed is not None and observed.changed:
             raise PathOperationBusy(PATH_BUSY)
+        card_root = os.fspath(CARDS_FOLDER) if scope == 'cards' else None
         generation = allocate_build_generation(conn, scope)
         try:
-            _build_and_activate_generation(conn, scope, generation, reason, rebuild_job=rebuild_job, observed=observed)
+            _build_and_activate_generation(conn, scope, generation, reason, rebuild_job=rebuild_job,
+                                           observed=observed, card_root=card_root)
         except (OSError, PathOperationBusy) as exc:
             conn.rollback()
             # 分批提交的半成品也必须删除；旧活动 generation 与格式版本保持不变。
@@ -239,6 +246,13 @@ def rebuild_scope_generation(scope: str, reason: str = 'bootstrap', *, rebuild_j
                 ctx.index_state.update(state='error', scope=scope, message=message)
             logger.warning('%s', message)
             raise
+        except Exception as exc:
+            conn.rollback()
+            if scope == 'cards':
+                clear_generation_data(conn, scope, generation)
+                update_build_state(conn, scope, state='failed', phase='activation',
+                                   building_generation=0, last_error=str(exc)[:500])
+            raise
 
 
 @contextmanager
@@ -249,7 +263,8 @@ def _pin_rebuild_observation(observed):
         yield
 
 
-def _build_and_activate_generation(conn, scope, generation, reason, *, rebuild_job=None, observed=None):
+def _build_and_activate_generation(conn, scope, generation, reason, *, rebuild_job=None, observed=None,
+                                   card_root=None):
     update_build_state(
         conn,
         scope,
@@ -288,11 +303,20 @@ def _build_and_activate_generation(conn, scope, generation, reason, *, rebuild_j
         )
         _ensure_worldinfo_projection_complete(conn, generation, inspected_books)
     else:
+        from core.data import card_list_projection as logical
+        card_root = card_root or os.fspath(CARDS_FOLDER)
+        metadata_epoch = get_scan_state(conn, SCAN_STATE_CARD_ROOT_EPOCH, '')
+        if (not logical.metadata_matches(conn, card_root)
+                or logical.root_changed(conn, get_active_generation(conn, 'cards'), card_root)
+                and get_scan_state(conn, SCAN_STATE_CARD_ROOT, '') != logical.root_key(card_root)):
+            raise OSError('请先完成新卡片目录的扫描')
         items_written = build_cards_generation(
             conn,
             generation,
             progress_cb=_make_progress_callback(conn, scope, PHASE_BUILD),
         )
+        if logical.installed(conn):
+            logical.build(conn, generation, card_root)
 
     conn.execute(
         'UPDATE index_build_state SET phase = ? WHERE scope = ?',
@@ -301,6 +325,23 @@ def _build_and_activate_generation(conn, scope, generation, reason, *, rebuild_j
     conn.commit()
     _publish_build_progress(scope, phase=PHASE_ACTIVATE)
     # 读取阶段允许路径操作。只在短提交阶段核验并固定观察，过期时保留旧代。
+    if scope == 'cards' and logical.installed(conn):
+        from core.services.card_service import resolve_ui_key
+
+        folders = logical.read_folders(card_root)
+        conn.execute('BEGIN IMMEDIATE')
+        if (logical.root_key(card_root) != logical.root_key(os.fspath(CARDS_FOLDER))
+                or not logical.metadata_matches(conn, card_root)
+                or metadata_epoch != get_scan_state(conn, SCAN_STATE_CARD_ROOT_EPOCH, '')):
+            raise OSError('构建过程中卡片目录已变更')
+        for card_id, source_path, payload in conn.execute(
+                'SELECT card_id,source_path,payload_json FROM index_card_build_changes WHERE generation=?',
+                (generation,)).fetchall():
+            ui_key = json.loads(payload).get('ui_key') or resolve_ui_key(card_id)
+            ui = logical.read_ui(conn, (card_id, ui_key, card_id.rpartition('/')[0]))
+            apply_card_increment(conn, card_id, source_path, ui_key=ui_key, ui_data=ui,
+                                 commit=False, replay_generation=generation)
+        logical.reconcile_folders(conn, generation, card_root, folders)
     if not activate_generation(conn, scope, generation, items_written=items_written, rebuild_job=rebuild_job,
                                activation_guard=lambda: _pin_rebuild_observation(observed)):
         raise RuntimeError(f'{scope} 索引构建代 {generation} 或重建任务已被替换，本次重建未激活')
@@ -348,14 +389,25 @@ def plan_startup_upgrade(index_auto_bootstrap: bool = True) -> list[dict]:
             str(row['scope']): get_search_content_format_version(conn, str(row['scope']))
             for row in rows
         }
+        from core.data import card_list_projection as logical
+        active_cards = next((row['active_generation'] for row in rows if row['scope'] == 'cards'), 0)
+        cards_root_changed = logical.root_changed(conn, active_cards, os.fspath(CARDS_FOLDER))
 
     plan = []
     for row in rows:
         scope = str(row['scope'])
+        if scope == 'cards' and cards_root_changed:
+            continue  # The strict scanner must first reconcile metadata for the new root.
         if row['state'] == 'ready' and int(row['active_generation'] or 0) > 0:
             # 索引本身是就绪的，但内容格式可能已过时（例如本次升级引入了
             # CJK 切分）。此时必须重建，否则搜索会静默失效。
             if built_formats.get(scope, 0) >= SEARCH_CONTENT_FORMAT_VERSION:
+                if scope == 'cards':
+                    from core.data import card_list_projection as logical
+                    with closing(connect_index_db(DEFAULT_DB_PATH)) as conn:
+                        if logical.installed(conn) and not logical.eligible(
+                                conn, row['active_generation'], os.fspath(CARDS_FOLDER)):
+                            plan.append({'scope': scope, 'reason': 'logical_card_list_upgrade'})
                 continue
             _print_and_log(
                 f'{scope} 索引的搜索内容格式为 v{built_formats.get(scope, 0)}，'

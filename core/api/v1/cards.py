@@ -63,7 +63,7 @@ from core.services.cache_service import schedule_reload, force_reload, update_ca
 from core.services.index_service import enqueue_index_job
 from core.services.card_index_sync_service import persist_card_index_jobs, sync_card_index_jobs
 from core.services.index_build_service import apply_card_increment, connect_index_db
-from core.services.card_index_query_service import query_indexed_cards
+from core.services.card_index_query_service import query_indexed_cards, query_logical_cards
 from core.services.card_service import (
     update_card_content,
     update_card_ui_fields,
@@ -852,18 +852,9 @@ def _build_isolated_exclusive_tags(isolated_paths):
     return isolated_tags - visible_tags
 
 
-def _build_list_cards_tag_metadata(candidates, ui_data_for_order, isolated_paths=None):
-    sidebar_tags_set = set()
-    for card in candidates:
-        for tag in card.get('tags', []):
-            sidebar_tags_set.add(tag)
-
+def _format_list_cards_tag_metadata(sidebar_tags_set, global_tag_set, ui_data_for_order):
     persisted_tag_order = _get_tag_order(ui_data_for_order)
     use_custom_tag_order = _is_tag_order_enabled(ui_data_for_order)
-
-    global_tag_set = set(ctx.cache.global_tags or [])
-    if isolated_paths:
-        global_tag_set -= _build_isolated_exclusive_tags(isolated_paths)
 
     if use_custom_tag_order:
         sidebar_tags = _apply_tag_order(list(sidebar_tags_set), persisted_tag_order)
@@ -883,6 +874,14 @@ def _build_list_cards_tag_metadata(candidates, ui_data_for_order, isolated_paths
         'global_tag_groups': global_tag_groups,
         'sidebar_tag_groups': sidebar_tag_groups,
     }
+
+
+def _build_list_cards_tag_metadata(candidates, ui_data_for_order, isolated_paths=None):
+    sidebar_tags = {tag for card in candidates for tag in card.get('tags', [])}
+    global_tags = set(ctx.cache.global_tags or [])
+    if isolated_paths:
+        global_tags -= _build_isolated_exclusive_tags(isolated_paths)
+    return _format_list_cards_tag_metadata(sidebar_tags, global_tags, ui_data_for_order)
 
 
 def _collect_list_cards_metadata_candidates(cards, category, search_scope, is_recursive, isolated_paths):
@@ -1033,10 +1032,6 @@ def _apply_wi_preview(
 
 @bp.route('/api/list_cards')
 def api_list_cards():
-    # 确保缓存已加载
-    if not ctx.cache.initialized:
-        ctx.cache.reload_from_db()
-
     # 参数获取
     try:
         page = int(request.args.get('page', 1))
@@ -1104,6 +1099,37 @@ def api_list_cards():
     ui_data_for_order = load_ui_data()
     isolated_categories = get_isolated_categories(ui_data_for_order)
     isolated_paths = isolated_categories.get('paths') or []
+    if page > 0 and page_size > 0:
+        logical_page = query_logical_cards({
+            'db_path': DEFAULT_DB_PATH, 'root': os.fspath(CARDS_FOLDER),
+            'page': page, 'page_size': page_size, 'category': category,
+            'search': search, 'search_mode': search_mode, 'search_type': search_type,
+            'search_scope': effective_search_scope, 'recursive': is_recursive, 'isolated': isolated_paths,
+            'fav_filter': fav_filter, 'fav_first': fav_first, 'sort': sort_mode,
+            'include_tags': include_tags, 'exclude_tags': exclude_tags,
+            'import_date_from': import_date_from, 'import_date_to': import_date_to,
+            'modified_date_from': modified_date_from, 'modified_date_to': modified_date_to,
+            'token_min': token_min, 'token_max': token_max,
+        })
+        if logical_page is not None:
+            if not logical_page.get('index_ready', True):
+                metadata = _format_list_cards_tag_metadata(set(), set(), ui_data_for_order)
+                return jsonify(cards=[], all_folders=[], category_counts={}, total_count=0, library_total=0,
+                               isolated_categories=isolated_categories, index_ready=False, page=page,
+                               page_size=page_size, **metadata)
+            # Image content revisions are separate from list and source revisions.
+            for card in logical_page['cards']:
+                cached = (getattr(ctx.cache, 'id_map', {}) or {}).get(card['id'])
+                if (cached and cached.get('image_revision') and cached.get('file_hash') == card['file_hash']):
+                    for field in ('image_revision', 'image_url', 'thumb_url'):
+                        if field in cached:
+                            card[field] = cached[field]
+            logical_page.update(_format_list_cards_tag_metadata(
+                logical_page['sidebar_tags'], logical_page['global_tags'], ui_data_for_order))
+            return jsonify(isolated_categories=isolated_categories, **logical_page)
+
+    if not ctx.cache.initialized:
+        ctx.cache.reload_from_db()
     use_index = bool(cfg.get('cards_list_use_index', False))
     use_index_for_search = bool(cfg.get('fast_search_use_index', False))
     if search:
@@ -3368,6 +3394,40 @@ def api_find_card_page():
         page_size = int(request.json.get('page_size', 20))
         
         if not target_id: return jsonify({"success": False})
+        if page_size > 0:
+            data = request.json
+            recursive = _coerce_request_bool(data.get('recursive', True))
+            scope = data.get('search_scope', 'current')
+            if scope not in ('current', 'all_dirs', 'full'):
+                scope = 'current'
+            tag_in = _normalize_tag_param(data.get('tags'))
+            tag_out = _normalize_tag_param(data.get('excluded_tags'))
+            limits = {key: _parse_date_filter_value(data.get(key), key)
+                      for key in ('import_date_from', 'import_date_to', 'modified_date_from', 'modified_date_to')}
+            for key in ('import_date_to', 'modified_date_to'):
+                if limits[key] is not None:
+                    limits[key] = (datetime.fromtimestamp(limits[key], tz=timezone.utc) + timedelta(days=1)).timestamp()
+            limits.update({key: _parse_int_filter_value(data.get(key), key) for key in ('token_min', 'token_max')})
+            keyword = str(data.get('search') or '').strip().lower()
+            favorite = data.get('fav_filter', 'none')
+            active_filters = _has_active_card_list_filters(
+                search=keyword, fav_filter=favorite, include_tags=tag_in, exclude_tags=tag_out, **limits)
+            scope = _resolve_card_list_search_scope(
+                scope, recursive and _coerce_request_bool(data.get('all_dirs_only_with_filters')), active_filters)
+            located = query_logical_cards({
+                'db_path': DEFAULT_DB_PATH, 'root': os.fspath(CARDS_FOLDER), 'category': category,
+                'page_size': page_size, 'sort': sort_mode, 'recursive': recursive, 'search_scope': scope,
+                'isolated': get_isolated_categories(load_ui_data()).get('paths') or [],
+                'search': keyword, 'search_mode': data.get('search_mode', 'fast'),
+                'search_type': data.get('search_type', 'mix'), 'fav_filter': favorite,
+                'fav_first': _coerce_request_bool(data.get('favorites_first')),
+                'include_tags': tag_in, 'exclude_tags': tag_out, **limits,
+            }, target=target_id)
+            if located is not None:
+                if not located.get('index_ready', True):
+                    return jsonify(success=False, msg='角色卡目录正在重新建立索引，请稍后重试')
+                return (jsonify(success=True, **located) if located else
+                        jsonify(success=False, msg='在目标分类中未找到该卡片'))
 
         # 1. 确保缓存加载
         if not ctx.cache.initialized:
@@ -5279,6 +5339,8 @@ def api_create_folder():
                 # 重新排序以保持美观
                 ctx.cache.visible_folders.sort()
         schedule_reload(reason="create_folder")
+        from core.data.card_list_projection import publish_folder_change
+        publish_folder_change(DEFAULT_DB_PATH, os.fspath(CARDS_FOLDER), new=new_rel_path)
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"success": False, "msg": str(e)})
@@ -5679,6 +5741,9 @@ def api_delete_folder():
 
         # 5. 触发刷新
         schedule_reload(reason="delete_folder")
+        if not os.path.exists(target_dir):
+            from core.data.card_list_projection import publish_folder_change
+            publish_folder_change(DEFAULT_DB_PATH, os.fspath(CARDS_FOLDER), old=folder_path)
 
         return jsonify({
             "success": True, 

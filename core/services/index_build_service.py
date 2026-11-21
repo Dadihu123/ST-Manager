@@ -1025,7 +1025,8 @@ def _card_ui_projection(ui_data, card_id, ui_key=None, *, lookup_cover=None):
 
 
 def apply_card_increment(conn, card_id: str, source_path: str = '', *, remove_entity_ids: list[str] | None = None,
-                         commit=True, ui_data=None, source_revision=None, ui_key=None) -> bool:
+                         commit=True, ui_data=None, source_revision=None, ui_key=None,
+                         replay_generation=None) -> bool:
     # 外部读取在短写事务之前完成。
     ui_data = load_ui_data() if ui_data is None else ui_data
     ui_key, summary = _card_ui_projection(ui_data, card_id, ui_key, lookup_cover=partial(_metadata_bundle_cover, conn))
@@ -1036,9 +1037,17 @@ def apply_card_increment(conn, card_id: str, source_path: str = '', *, remove_en
     generations = conn.execute("SELECT active_generation,building_generation FROM index_build_state "
                                "WHERE scope='cards'").fetchone()
     generation, building = generations or (0, 0)
+    if replay_generation is not None:
+        if replay_generation != building:
+            raise RuntimeError('卡片构建代已变化，无法重放')
+        generation, building = replay_generation, 0
     if generation <= 0:
         raise RuntimeError('cards active generation missing')
 
+    from core.data import card_list_projection as logical
+    root = os.fspath(CARDS_FOLDER)
+    if replay_generation is None and not logical.metadata_matches(conn, root):
+        return True  # The current root will be projected after full reconciliation.
     remove_entity_ids = remove_entity_ids or []
     resolved_source_path = str(source_path or os.path.join(CARDS_FOLDER, card_id.replace('/', os.sep)))
     if building:
@@ -1062,6 +1071,9 @@ def apply_card_increment(conn, card_id: str, source_path: str = '', *, remove_en
     ).fetchone()
     entity_id = f'card::{card_id}'
     _delete_card_entity_rows(conn, generation, entity_id)
+
+    if replay_generation is None and logical.eligible(conn, generation, root):
+        logical.drain(conn, generation, root, [card_id, ui_key, *remove_entity_ids])
 
     if row is None:
         if commit:

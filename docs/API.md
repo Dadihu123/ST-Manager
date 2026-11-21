@@ -97,6 +97,9 @@ curl -X POST http://127.0.0.1:5000/api/toggle_favorite \
 | `token_min`、`token_max` | Token 数范围 |
 
 响应至少包含 `cards`、`total_count`、`page`、`page_size`、`global_tags`、`all_folders` 和分类统计信息。
+聚合包在列表中只显示一条，ID 为当前封面的物理卡片 ID。筛选后同值排序使用稳定的逻辑卡 ID。
+切换卡片根目录时，响应可包含 `index_ready: false`；当前目录完成扫描和索引建立后再刷新。
+当前目录的后台变更尚未全部发布时，分页返回已提交的列表快照及 `index_stale: true`。
 
 | 方法 | 路径 | 作用 | 请求要点 |
 | --- | --- | --- | --- |
@@ -104,7 +107,7 @@ curl -X POST http://127.0.0.1:5000/api/toggle_favorite \
 | `POST` | `/api/get_card_detail` | 获取角色卡详情、UI 数据和来源状态 | JSON `id`；可选 `preview_wi`、`force_full_wi`、预览限制 |
 | `POST` | `/api/get_raw_metadata` | 读取原始卡片数据 | JSON `id` |
 | `POST` | `/api/normalize_card_data` | 按写入规则清洗原始卡片数据，用于 Diff/预览 | JSON 原始卡片数据 |
-| `POST` | `/api/find_card_page` | 计算卡片在当前筛选条件下的页码 | JSON `card_id`、`category`、`sort`、`page_size` |
+| `POST` | `/api/find_card_page` | 计算卡片在当前筛选条件下的页码 | JSON `card_id`、`category`、`sort`、`page_size`；可传与列表相同的筛选参数 |
 | `POST` | `/api/random_card` | 在当前筛选条件中随机返回角色卡 | JSON 分类、标签、搜索条件 |
 | `POST` | `/api/draw_cards` | 抽卡：单抽（`count=1`）或十连（`count=10`） | JSON `count`、可选 `pity`，以及同 `list_cards` 的筛选条件 |
 | `POST` | `/api/toggle_favorite` | 切换收藏状态 | JSON `id` |

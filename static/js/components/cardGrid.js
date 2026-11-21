@@ -1439,6 +1439,9 @@ export default function cardGrid() {
 
       listCards(params) // 调用 API 模块
         .then((data) => {
+          if (data.index_ready === false) {
+            store.showToast("正在为当前目录建立卡片索引，请稍后刷新", 3200);
+          }
           const nextTotalItems = data.total_count || 0;
           const nextTotalPages = Math.ceil(nextTotalItems / pageSize) || 1;
 
@@ -2144,11 +2147,18 @@ export default function cardGrid() {
       this._suppressAutoFetch = true;
 
       // === 在定位前清空所有过滤条件 ===
-      this._suppressAutoFetch = true;
       store.viewState.searchQuery = ""; // 清空搜索关键词
       store.viewState.filterTags = []; // 清空标签筛选
+      store.viewState.excludedTags = [];
       store.viewState.searchType = "mix"; // 重置搜索类型
-      store.viewState.filterFavorites = false; // 取消仅收藏
+      store.viewState.searchScope = "current";
+      store.viewState.favFilter = "none";
+      store.viewState.importDateFrom = "";
+      store.viewState.importDateTo = "";
+      store.viewState.modifiedDateFrom = "";
+      store.viewState.modifiedDateTo = "";
+      store.viewState.tokenMin = "";
+      store.viewState.tokenMax = "";
 
       store.isLoading = true;
 
@@ -2158,6 +2168,10 @@ export default function cardGrid() {
       findCardPage({
         card_id: payload.id,
         category: requestCategory,
+        recursive: store.viewState.recursiveFilter,
+        all_dirs_only_with_filters:
+          store.viewState.allDirsOnlyWithFilters === true && store.viewState.recursiveFilter !== false,
+        favorites_first: store.settingsForm.favorites_first,
         sort:
           store.currentSort || store.settingsForm.default_sort || "date_desc",
         page_size: store.itemsPerPage,
