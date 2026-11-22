@@ -88,7 +88,7 @@
 | `api.cards.apply_tags()` | `apply_tags(card_ids, *, add=(), remove=(), replace: bool = False) -> dict` | Stable | 批量写入标签。 |
 | `api.cards.read_note()` | `read_note(card_id: str) -> str` | Stable | 读本地备注（卡片网格里「本地备注」那一栏）；无备注返回空串。 |
 | `api.cards.read_notes()` | `read_notes(card_ids) -> dict` | Stable | 批量读本地备注，返回 `{card_id: text}`（无备注为 `''`）。 |
-| `api.cards.write_note()` | `write_note(card_id: str, text: str) -> bool` | Stable | 写本地备注（走 `ui_data` 的锁内合并，不会与宿主 UI 的并发写丢更新）。 |
+| `api.cards.write_note()` | `write_note(card_id: str, text: str, *, expected_text: str = None) -> bool` | Stable | 写本地备注；可用 `expected_text` 防止覆盖读取后发生的并发编辑。 |
 | `api.cards.move()` | `move(card_ids, target_category: str) -> dict` | Stable | 批量移动卡片到分类（空串表示根目录）。 |
 | `api.cards.list_categories()` | `list_categories() -> list` | Stable | 全部分类（含子分类），相对 `CARDS_FOLDER`，按路径升序。 |
 | `api.cards.create_category()` | `create_category(name: str, *, parent: str = '') -> bool` | Stable | 创建分类目录（已存在时返回 `True`，幂等）。 |

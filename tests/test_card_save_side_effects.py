@@ -206,6 +206,28 @@ await modal.saveChanges();
         hooks.unregister('card.updated', update_from_plugin)
 
 
+def test_ui_only_note_cache_cas_rejects_concurrent_note(isolated_library, tmp_path):
+    """UI-only 缓存刷新不能覆盖读备注后出现的并发新备注。"""
+    client, root, _db, _cache, _jobs, _cfg = isolated_library
+    card_id = 'hero.png'
+    write_png(root / card_id)
+    api = PluginAPI(PluginManifest.load(write_plugin(tmp_path, 'note-cache-cas')))
+    assert api.cards.write_note(card_id, '用户并发新备注')
+
+    response = client.post('/api/update_card', json={
+        'id': card_id,
+        'ui_only': True,
+        'ui_only_fields': ['ui_summary'],
+        'ui_summary': '基于旧读取值的内容',
+        'expected_ui_summary': '读取时的旧备注',
+    })
+
+    assert response.status_code == 409
+    payload = response.get_json()
+    assert payload['success'] is False and payload['conflict'] is True
+    assert api.cards.read_note(card_id) == '用户并发新备注'
+
+
 @pytest.mark.parametrize('read_failure', [False, True])
 def test_hook_write_then_raise_never_pairs_old_body_with_new_revision(isolated_library, monkeypatch, tmp_path, read_failure):
     client, root, _db, _cache, _jobs, _cfg = isolated_library

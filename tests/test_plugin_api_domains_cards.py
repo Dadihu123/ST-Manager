@@ -469,6 +469,47 @@ def test_write_note_preserves_concurrently_written_link(env):
     assert entry['resource_folder'] == 'RF'
 
 
+def test_write_note_with_expected_text_rejects_concurrent_edit(env):
+    """条件写入在锁内比较当前备注，旧值不匹配时不覆盖并发编辑。"""
+    api = env['api']
+    write_card(env['cards'], 'card.json')
+    api.cards.write_note('card.json', '用户的新备注')
+
+    assert api.cards.write_note(
+        'card.json', '基于旧值合成的内容', expected_text='读取时的旧备注',
+    ) is False
+    assert api.cards.read_note('card.json') == '用户的新备注'
+
+
+def test_write_note_with_expected_text_updates_bundle_version_only(env):
+    """bundle 条件写入只比较和更新对应版本的备注。"""
+    api = env['api']
+    write_card(env['cards'], 'pack/v1.json')
+    write_card(env['cards'], 'pack/v2.json')
+    env['cache'].bundle_map['pack'] = 'pack/v1.json'
+    env['cache'].id_map['pack/v1.json'] = {
+        'id': 'pack/v1.json', 'is_bundle': True, 'bundle_dir': 'pack',
+        'versions': [{'id': 'pack/v1.json'}, {'id': 'pack/v2.json'}],
+    }
+    env['cache'].id_map['pack/v2.json'] = {
+        'id': 'pack/v2.json', 'is_bundle': False, 'bundle_dir': 'pack',
+    }
+    api.cards.write_note('pack/v1.json', 'v1 原备注')
+    api.cards.write_note('pack/v2.json', 'v2 并发新备注')
+
+    assert api.cards.write_note(
+        'pack/v2.json', '过期合成内容', expected_text='v2 旧备注',
+    ) is False
+    assert api.cards.read_note('pack/v2.json') == 'v2 并发新备注'
+    assert api.cards.read_note('pack/v1.json') == 'v1 原备注'
+
+    assert api.cards.write_note(
+        'pack/v2.json', '基于当前值的新内容', expected_text='v2 并发新备注',
+    ) is True
+    assert api.cards.read_note('pack/v2.json') == '基于当前值的新内容'
+    assert api.cards.read_note('pack/v1.json') == 'v1 原备注'
+
+
 def test_write_note_clears_with_empty_string(env):
     api = env['api']
     write_card(env['cards'], 'card.json')

@@ -112,12 +112,14 @@ class CardDomain(DomainBase):
             result[key] = self.read_note(key)
         return result
 
-    def write_note(self, card_id: str, text: str) -> bool:
-        """写本地备注（走 `ui_data` 的锁内合并，不会与宿主 UI 的并发写丢更新）。
+    def write_note(self, card_id: str, text: str, *, expected_text: str = None) -> bool:
+        """写本地备注；可用 `expected_text` 防止覆盖读取后发生的并发编辑。
 
-        卡片不存在或 `ui_data` 写入失败时返回 `False`。
+        `expected_text` 省略时沿用无条件写入。传入时，只有当前备注仍与该值完全
+        一致才会写入；若备注已变化则返回 `False` 且不修改备注。卡片不存在、
+        并发冲突或 `ui_data` 写入失败时均返回 `False`。
         """
-        return self._api._write_card_note(card_id, text)
+        return self._api._write_card_note(card_id, text, expected_text=expected_text)
 
     # ------------------------------------------------------------ 移动与分类
 

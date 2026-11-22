@@ -48,6 +48,7 @@ from core.context import ctx
 from core.data.ui_store import (
     get_tag_management_prefs,
     get_tag_taxonomy,
+    get_version_remark,
     load_ui_data,
     load_ui_data_or_empty,
     set_tag_management_prefs,
@@ -67,6 +68,10 @@ from core.utils.paths import is_under_base
 from core.utils.source_revision import build_file_source_revision
 from core.utils.text import estimate_text_tokens
 from core.version import APP_VERSION
+
+
+class _CardNoteConflict(Exception):
+    """内部信号：条件备注写入发现内容已被并发修改。"""
 
 logger = logging.getLogger(__name__)
 
@@ -820,8 +825,8 @@ class PluginAPI:
             return str(remarks[key].get('summary') or '')
         return str(entry.get('summary') or '')
 
-    def _write_card_note(self, card_id: str, text: str) -> bool:
-        """写本地备注（锁内合并写入 `ui_data`，保住并发的 link / resource_folder）。"""
+    def _write_card_note(self, card_id: str, text: str, *, expected_text=None) -> bool:
+        """锁内写备注；提供 `expected_text` 时仅在备注未变化时写入。"""
         key = str(card_id or '').strip().replace('\\', '/')
         if not key:
             return False
@@ -842,12 +847,27 @@ class PluginAPI:
 
         def mutator(ui_data):
             entry = ui_data.get(ui_key)
+            current_note = ''
+            if is_bundle_version:
+                cover_id = self._bundle_cover_id(parent_dir)
+                remark = get_version_remark(ui_data, parent_dir, key, cover_id)
+                if isinstance(remark, dict):
+                    current_note = str(remark.get('summary') or '')
+            elif isinstance(entry, dict):
+                remarks = entry.get('_version_remarks')
+                if isinstance(remarks, dict) and key in remarks and isinstance(remarks[key], dict):
+                    current_note = str(remarks[key].get('summary') or '')
+                else:
+                    current_note = str(entry.get('summary') or '')
+
+            if expected_text is not None and current_note != str(expected_text):
+                raise _CardNoteConflict
+
             if not isinstance(entry, dict):
                 entry = {}
                 ui_data[ui_key] = entry
 
             if is_bundle_version:
-                cover_id = self._bundle_cover_id(parent_dir)
                 set_version_remark(
                     ui_data, parent_dir, key,
                     {
@@ -861,7 +881,10 @@ class PluginAPI:
 
             entry['summary'] = summary
 
-        return bool(update_ui_data(mutator))
+        try:
+            return bool(update_ui_data(mutator))
+        except _CardNoteConflict:
+            return False
 
     # ---- 卡片移动与分类 ----
 

@@ -1747,7 +1747,7 @@ def api_update_card():
                 loader=load_ui_data, saver=save_ui_data, on_ui_committed=mark_ui_committed,
             )
             if not result['success']:
-                return jsonify(result), 500
+                return jsonify(result), int(result.get('status') or 500)
             ui_committed = True
             return _complete_card_update(data=data, current_full_path=os.path.join(
                                              CARDS_FOLDER, target_id.replace('/', os.sep)),

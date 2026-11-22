@@ -66,6 +66,10 @@ from core.automation.replace_text import apply_replace_text
 logger = logging.getLogger(__name__)
 
 
+class CardUiConflict(Exception):
+    """条件 UI 写入发现备注已被其它编辑修改。"""
+
+
 def create_character_card(name, category, cover, *, cards_root=CARDS_FOLDER):
     """Create an editable PNG character card and refresh its list entry."""
     if not isinstance(name, str) or not (name := name.strip()) or len(name) > 100 or '\x00' in name:
@@ -251,6 +255,10 @@ def update_card_ui_fields(card_id, data, *, cards_folder=None, db_path=None,
         entry = ui_data.setdefault(ui_key, {})
         old = (get_version_remark(ui_data, ui_key, card_id, cover_id) if bundle_dir else entry)
         values = {field: old.get(field, '') for field in ('summary', 'link', 'resource_folder')}
+        if 'expected_ui_summary' in data and 'ui_summary' in data:
+            expected_summary = str(data.get('expected_ui_summary') or '')
+            if values['summary'] != expected_summary:
+                raise CardUiConflict
         explicit_clear = set(data.get('ui_only_fields') or []) | set(data.get('clear_ui_fields') or [])
         for request_field, stored_field in (
             ('ui_summary', 'summary'), ('source_link', 'link'), ('resource_folder', 'resource_folder'),
@@ -279,7 +287,16 @@ def update_card_ui_fields(card_id, data, *, cards_folder=None, db_path=None,
                 version_summaries[version['id']] = get_version_remark(
                     ui_data, ui_key, version['id'], cover_id).get('summary', '')
 
-    if not update_ui_data(mutate, allow_shrink=False, loader=loader, saver=saver):
+    try:
+        saved = update_ui_data(mutate, allow_shrink=False, loader=loader, saver=saver)
+    except CardUiConflict:
+        return {
+            'success': False,
+            'conflict': True,
+            'status': 409,
+            'msg': '本地备注已被修改，请刷新后重试',
+        }
+    if not saved:
         return {'success': False, 'ui_data_save_failed': True,
                 'msg': '本地 UI 数据（备注/链接/资源目录）保存失败，请重试'}
 
