@@ -131,15 +131,8 @@ def _format_st_response_error(response, auth_type):
         return 'ST 认证失败 (401): Basic/Auth 用户名或密码错误。'
 
     if response.status_code == 403:
-        if auth_type in ('web', 'auth_web'):
-            return (
-                'ST 权限拒绝 (403): 认证已通过，但请求被 ST 的会话或 CSRF 校验拦截。'
-                '请检查 ST 日志，或在 config.yaml 中确认 disableCsrfProtection 配置。'
-            )
         return (
-            'ST 权限拒绝 (403): 认证已通过，但请求被 ST 的 CSRF 校验拦截。'
-            "请在 SillyTavern 的 config.yaml 中检查 'disableCsrfProtection'，"
-            '或改用 Web Login / Basic Auth + Web Login 模式。'
+            'ST 权限拒绝 (403): 请检查 ST 的登录会话、CSRF 校验和服务端日志。'
         )
 
     return f"ST Error: {response.status_code} - {response.text}"
@@ -1588,28 +1581,7 @@ def api_send_to_st():
 
         # 1. 获取配置
         cfg = load_config()
-        st_base_url = cfg.get('st_url', 'http://127.0.0.1:8000').rstrip('/')
-        username = cfg.get('st_username', '')
-        password = cfg.get('st_password', '')
-        auth_type = cfg.get('st_auth_type', 'basic') # 获取认证类型
-        
-        # 目标 API
-        target_url = f"{st_base_url}/api/characters/import"
-        
-        # === 代理设置逻辑 ===
-        proxy_setting = cfg.get('st_proxy', '').strip()
-        proxies = {}
-        if proxy_setting:
-            proxies = {
-                'http': proxy_setting,
-                'https': proxy_setting
-            }
-        else:
-            # 强制禁用代理 (绕过系统环境变量)
-            proxies = {
-                'http': None,
-                'https': None
-            }
+        auth_type = cfg.get('st_auth_type', 'basic')
 
         # 2. 检查文件
         rel_path = card_id.replace('/', os.sep)
@@ -1677,102 +1649,6 @@ def api_send_to_st():
             })
 
         return jsonify({"success": False, "msg": _format_st_response_error(response, auth_type)})
-
-        # 3. 创建 Session (保持 Cookie)
-        session = requests.Session()
-        
-        # 伪装 User-Agent
-        session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        })
-
-        # === 处理 认证 ===
-        auth_headers = {}
-
-        if password:
-            if auth_type == 'web':
-                # === Web Login 模式 ===
-                login_url = f"{st_base_url}/api/users/login"
-                login_payload = {"handle": username, "password": password}
-                try:
-                    # 先尝试登录获取 Cookie
-                    login_resp = session.post(login_url, json=login_payload, timeout=5)
-                    if login_resp.status_code != 200:
-                        return jsonify({"success": False, "msg": f"Web登录失败 ({login_resp.status_code}): 请检查用户名密码"})
-                except Exception as e:
-                    return jsonify({"success": False, "msg": f"无法连接到 ST 登录接口: {str(e)}"})
-            else:
-                # === Basic Auth 模式 (原有逻辑) ===
-                # 如果用户名为空，ST 有时默认是 'user' 或者空，视 ST 配置而定，这里直接编码配置的值
-                # base64 已经在头部 import 过了
-                auth_str = f"{username}:{password}"
-                auth_token = base64.b64encode(auth_str.encode('utf-8')).decode('utf-8')
-                auth_headers["Authorization"] = f"Basic {auth_token}"
-            
-                # 尝试访问主页获取 Cookie
-                try:
-                    session.get(st_base_url, timeout=5)
-                except requests.exceptions.ConnectionError:
-                    return jsonify({"success": False, "msg": "无法连接到 SillyTavern，请确认它已启动。"})
-
-        # 获取 CSRF Token 并添加到 Header
-        csrf_token = session.cookies.get('XSRF-TOKEN')
-        if csrf_token:
-            session.headers.update({'X-XSRF-TOKEN': csrf_token})
-
-        # 4. 发送文件
-        file_ext = os.path.splitext(file_path)[1].lower()
-        with open(file_path, 'rb') as f:
-            # 区分处理 PNG 和 JSON 
-            if file_ext == '.json':
-                files = {'avatar': ('card.json', f, 'application/json')}
-                data = {'file_type': 'json'} 
-            else:
-                files = {'avatar': ('card.png', f, 'image/png')}
-                data = {'file_type': 'png'}
-            
-            # 同时传入 files 和 data
-            response = session.post(
-                target_url, 
-                files=files, 
-                data=data, 
-                proxies=proxies,
-                timeout=10, 
-                headers=auth_headers
-            )
-
-        # 5. 处理结果
-        if response.status_code == 200:
-            st_response = response.json() if response.content else 'OK'
-            ui_data = load_ui_data()
-            ui_key = resolve_ui_key(card_id)
-            _, last_sent_to_st = set_last_sent_to_st(ui_data, ui_key, time.time())
-            save_ui_data(ui_data)
-
-            target_id = card_id
-            if ui_key in ctx.cache.bundle_map:
-                target_id = ctx.cache.bundle_map[ui_key]
-            ctx.cache.update_card_data(target_id, {'last_sent_to_st': last_sent_to_st})
-
-            return jsonify({
-                'success': True,
-                'st_response': st_response,
-                'last_sent_to_st': last_sent_to_st,
-            })
-        elif response.status_code == 400:
-            return jsonify({"success": False, "msg": f"ST 请求错误 (400): {response.text}"})
-        elif response.status_code == 401:
-            return jsonify({"success": False, "msg": "ST 认证失败 (401): Basic Auth 密码错误。"})
-        elif response.status_code == 403:
-            # 细化 403 提示
-            err_msg = "ST 权限拒绝 (403): "
-            if auth_type == 'web':
-                err_msg += "Web认证失效或CSRF校验失败。请尝试重启 ST Manager 或检查 ST 日志。"
-            else:
-                err_msg += "请在 SillyTavern 的 config.yaml 中设置 'disableCsrfProtection: true' 或尝试切换到 Web Login 模式。"
-            return jsonify({"success": False, "msg": err_msg})
-        else:
-            return jsonify({"success": False, "msg": f"ST Error: {response.status_code} - {response.text}"})
 
     except Exception as e:
         logger.error(f"Send to ST error: {e}")

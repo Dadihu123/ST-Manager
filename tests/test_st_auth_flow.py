@@ -145,7 +145,7 @@ def test_st_http_client_basic_applies_basic_auth_and_csrf(monkeypatch):
         session.cookies['XSRF-TOKEN'] = 'csrf-basic'
         return DummyResponse(200, text='ok')
 
-    fake_session = FakeSession([warmup])
+    fake_session = FakeSession([warmup, DummyResponse(404)])
     monkeypatch.setattr(st_auth.requests, 'Session', lambda: fake_session)
 
     client = st_auth.build_st_http_client({
@@ -167,7 +167,7 @@ def test_st_http_client_web_performs_login(monkeypatch):
         session.cookies['XSRF-TOKEN'] = 'csrf-web'
         return DummyResponse(200, json_data={'ok': True})
 
-    fake_session = FakeSession([login])
+    fake_session = FakeSession([DummyResponse(404), login])
     monkeypatch.setattr(st_auth.requests, 'Session', lambda: fake_session)
 
     client = st_auth.build_st_http_client({
@@ -179,8 +179,8 @@ def test_st_http_client_web_performs_login(monkeypatch):
     client.ensure_authenticated()
 
     assert fake_session.auth is None
-    assert fake_session.calls[0]['url'].endswith('/api/users/login')
-    assert fake_session.calls[0]['kwargs']['json'] == {'handle': 'default-user', 'password': 'susu'}
+    assert fake_session.calls[1]['url'].endswith('/api/users/login')
+    assert fake_session.calls[1]['kwargs']['json'] == {'handle': 'default-user', 'password': 'susu'}
     assert fake_session.headers['X-XSRF-TOKEN'] == 'csrf-web'
 
 
@@ -198,6 +198,7 @@ def test_st_http_client_auth_web_uses_basic_then_web_then_request(monkeypatch):
 
     fake_session = FakeSession([
         warmup,
+        DummyResponse(404),
         login,
         DummyResponse(200, json_data={'imported': True}),
     ])
@@ -217,14 +218,53 @@ def test_st_http_client_auth_web_uses_basic_then_web_then_request(monkeypatch):
     assert response.status_code == 200
     assert [call['url'] for call in fake_session.calls] == [
         'http://127.0.0.1:8000',
+        'http://127.0.0.1:8000/csrf-token',
         'http://127.0.0.1:8000/api/users/login',
         'http://127.0.0.1:8000/api/characters/import',
     ]
-    assert fake_session.calls[2]['kwargs']['proxies'] == {
+    assert fake_session.calls[3]['kwargs']['proxies'] == {
         'http': 'http://127.0.0.1:7890',
         'https': 'http://127.0.0.1:7890',
     }
-    assert fake_session.headers['X-XSRF-TOKEN'] == 'csrf-web'
+    assert fake_session.calls[3]['headers']['X-XSRF-TOKEN'] == 'csrf-web'
+
+
+@pytest.mark.parametrize('auth_type', ['basic', 'web', 'auth_web'])
+def test_st_http_client_uses_modern_csrf_for_login_and_writes(monkeypatch, auth_type):
+    needs_warmup = auth_type != 'web'
+    needs_login = auth_type != 'basic'
+    responses = [DummyResponse(200)] if needs_warmup else []
+    responses.append(DummyResponse(200, json_data={'token': 'session-token'}))
+    if needs_login:
+        responses.append(DummyResponse(200, json_data={'handle': 'alice'}))
+    responses.extend([DummyResponse(200), DummyResponse(200)])
+    fake_session = FakeSession(responses)
+    monkeypatch.setattr(st_auth.requests, 'Session', lambda: fake_session)
+
+    client = st_auth.build_st_http_client({'st_auth_type': auth_type})
+    client.post('/api/themes/save', json={'name': 'theme'})
+    client.post('/api/settings/save', json={'power_user': {'theme': 'theme'}})
+
+    calls = fake_session.calls[int(needs_warmup):]
+    assert calls[0]['method'] == 'GET'
+    assert calls[0]['url'].endswith('/csrf-token')
+    if needs_login:
+        assert calls[1]['url'].endswith('/api/users/login')
+    assert all(call['method'] == 'POST' for call in calls[1:])
+    assert all(call['headers']['X-CSRF-Token'] == 'session-token' for call in calls[1:])
+
+
+def test_st_http_client_reports_rejected_csrf_request_before_login(monkeypatch):
+    fake_session = FakeSession([DummyResponse(403)])
+    monkeypatch.setattr(st_auth.requests, 'Session', lambda: fake_session)
+    client = st_auth.build_st_http_client({'st_auth_type': 'web'})
+
+    with pytest.raises(st_auth.STAuthError) as error:
+        client.ensure_authenticated()
+
+    assert error.value.stage == 'csrf'
+    assert error.value.status_code == 403
+    assert len(fake_session.calls) == 1
 
 
 def test_send_to_st_reports_basic_auth_failures(tmp_path, monkeypatch):

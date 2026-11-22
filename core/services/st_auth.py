@@ -92,6 +92,26 @@ class STHTTPClient:
             )
         return response
 
+    def _prepare_csrf(self):
+        response = self._request('GET', '/csrf-token', timeout=5)
+        if response.status_code in (404, 405):
+            # Older servers may only provide the XSRF-TOKEN cookie.
+            return
+        if response.status_code == 200:
+            try:
+                payload = response.json()
+            except ValueError:
+                payload = None
+            token = payload.get('token') if isinstance(payload, dict) else None
+            if isinstance(token, str) and token:
+                self.session.headers['X-CSRF-Token'] = token
+                return
+        raise STAuthError(
+            'csrf',
+            '无法获取 SillyTavern 的 CSRF 令牌，请检查连接地址、认证设置或 ST 日志。',
+            status_code=response.status_code,
+        )
+
     def _perform_web_login(self):
         response = self._request(
             'POST',
@@ -114,6 +134,8 @@ class STHTTPClient:
 
         if self.uses_basic_auth:
             self._warm_up_basic_auth()
+
+        self._prepare_csrf()
 
         if self.uses_web_login:
             self._perform_web_login()

@@ -184,6 +184,8 @@ def test_local_client_theme_also_activates_it(tmp_path):
     # 已发送的主题应被设为当前主题，同时保留 settings.json 中的其它字段。
     settings = json.loads((user_dir / 'settings.json').read_text(encoding='utf-8'))
     assert settings['power_user']['theme'] == 'Demo'
+    assert settings['power_user']['theme_fallback'] == 'Demo'
+    assert settings['power_user']['main_text_color'] == 'rgba(1,2,3,1)'
     assert settings['keep'] == 1
 
 
@@ -343,13 +345,16 @@ def test_tauri_client_sends_user_handle_for_json_resources(monkeypatch, tmp_path
 
     client.send_world_info(str(source_path), b'{"entries": {}}')
     client.send_preset(str(source_path), {'name': 'Writing', 'prompts': []})
-    client.send_theme({'name': 'Demo', 'colors': {}})
+    theme_result = client.send_theme({'name': 'Demo', 'colors': {}})
 
     assert [call['json']['user_handle'] for call in fake_session.calls] == [
         'writer-user',
         'writer-user',
         'writer-user',
     ]
+    # A legacy receiver can import the theme while omitting the explicit
+    # application acknowledgement; the client must report that distinction.
+    assert theme_result['theme_applied'] is False
 
 
 def test_tauri_connection_endpoint_uses_default_api_url(monkeypatch):

@@ -965,8 +965,10 @@ export default function beautifyGrid() {
         const targetName = this.$store?.global?.getSendTargetName?.() || "ST";
         const successMessage =
           targetName === "ST"
-            ? "主题已发送到 ST 并设为当前主题"
-            : "标准主题已发送到 TauriTavern 并设为当前主题";
+            ? "主题已发送到 ST，刷新 ST 页面后生效"
+            : res.theme_applied
+              ? "主题已发送到 TauriTavern，可作为全局主题使用"
+              : "主题已导入 TauriTavern，请在接收端手动应用";
         this.$store.global.showToast(
           successMessage,
           2200,

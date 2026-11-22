@@ -12,14 +12,17 @@ TauriTavern 提供两种接收外部资源的方式：
 """
 
 import json
+import logging
 import os
 import shutil
 import tempfile
+import threading
 from typing import Any, Dict, Optional
 from urllib.parse import urlparse
 
 import requests
 
+from core.services.tavern_theme import activate_sent_theme
 from core.utils.filesystem import sanitize_filename
 
 
@@ -28,6 +31,9 @@ DEFAULT_TT_API_URL = 'http://127.0.0.1:19999'
 TAURI_TAVERN_TARGET = 'tauritavern'
 TT_MODE_LOCAL = 'local'
 TT_MODE_API = 'api'
+TT_THEME_APPLY_CAPABILITY = 'theme_apply_v1'
+_local_theme_lock = threading.Lock()
+logger = logging.getLogger(__name__)
 
 # TauriTavern 用户目录内的资源子目录，与 SillyTavern 保持一致。
 TT_RESOURCE_DIRECTORIES = {
@@ -214,7 +220,11 @@ class TauriTavernLocalClient:
         self._write_bytes_atomic(target, bytes(payload_bytes))
         return {'path': target, 'filename': os.path.basename(target)}
 
-    def send_theme(self, theme_data: Dict[str, Any]) -> Dict[str, str]:
+    def send_theme(self, theme_data: Dict[str, Any]) -> Dict[str, Any]:
+        with _local_theme_lock:
+            return self._send_theme(theme_data)
+
+    def _send_theme(self, theme_data: Dict[str, Any]) -> Dict[str, Any]:
         if not isinstance(theme_data, dict):
             raise ValueError('主题内容无效')
         theme_name = str(theme_data.get('name') or '').strip()
@@ -224,8 +234,6 @@ class TauriTavernLocalClient:
         target = self._target_path('themes', f'{theme_name}.json')
         payload = dict(theme_data)
         payload['name'] = theme_name
-        self._write_json_atomic(target, payload)
-
         settings_path = os.path.join(self.user_dir, 'settings.json')
         settings: Dict[str, Any] = {}
         if os.path.isfile(settings_path):
@@ -240,14 +248,42 @@ class TauriTavernLocalClient:
         power_user = settings.get('power_user')
         if not isinstance(power_user, dict):
             power_user = {}
-        power_user['theme'] = theme_name
+        activate_sent_theme(power_user, payload, tauri=True)
         settings['power_user'] = power_user
-        self._write_json_atomic(settings_path, settings)
+        # Prepare the rollback copy before the first write, even if the disk fills on the second write.
+        backup = None
+        try:
+            if os.path.lexists(target):
+                with tempfile.NamedTemporaryFile(dir=os.path.dirname(target), suffix='.bak', delete=False) as handle:
+                    backup = handle.name
+                shutil.copy2(target, backup)
+            self._write_json_atomic(target, payload)
+            try:
+                self._write_json_atomic(settings_path, settings)
+            except (OSError, ValueError) as error:
+                try:
+                    if backup:
+                        os.replace(backup, target)
+                    else:
+                        os.unlink(target)
+                except OSError as rollback_error:
+                    if backup:
+                        logger.error('TauriTavern 主题回滚失败，旧文件副本保留在 %s', backup)
+                        backup = None
+                    raise OSError(f'TauriTavern 设置写入失败，主题回滚也失败: {rollback_error}') from error
+                raise OSError(f'TauriTavern 设置写入失败，已还原主题目录: {error}') from error
+        finally:
+            if backup and os.path.exists(backup):
+                try:
+                    os.unlink(backup)
+                except OSError:
+                    logger.warning('无法清理 TauriTavern 主题备份: %s', backup, exc_info=True)
 
         return {
             'path': target,
             'settings_path': settings_path,
             'filename': os.path.basename(target),
+            'theme_applied': True,
         }
 
     def send_preset(self, source_path: str, preset_data: Dict[str, Any]) -> Dict[str, str]:
@@ -392,7 +428,7 @@ class TauriTavernClient:
             'filename': str(result.get('filename') or f'{name}.json'),
         }
 
-    def send_theme(self, theme_data: Dict[str, Any]) -> Dict[str, str]:
+    def send_theme(self, theme_data: Dict[str, Any]) -> Dict[str, Any]:
         if not isinstance(theme_data, dict):
             raise ValueError('主题内容无效')
         theme_name = str(theme_data.get('name') or '').strip()
@@ -412,6 +448,9 @@ class TauriTavernClient:
             'path': str(result.get('path') or ''),
             'settings_path': str(result.get('settings_path') or ''),
             'filename': str(result.get('filename') or f'{theme_name}.json'),
+            # New receivers explicitly confirm that settings were applied. Older
+            # receivers still import the file but omit this field.
+            'theme_applied': result.get('theme_applied') is True,
         }
 
     def send_preset(self, source_path: str, preset_data: Dict[str, Any]) -> Dict[str, str]:

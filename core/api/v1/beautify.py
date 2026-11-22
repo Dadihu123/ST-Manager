@@ -3,6 +3,7 @@ import os
 import tempfile
 import json
 import time
+from copy import deepcopy
 
 from flask import Blueprint, jsonify, request, send_file
 from werkzeug.exceptions import BadRequest, UnsupportedMediaType
@@ -17,6 +18,7 @@ from core.data.ui_store import (
 from core.api.v1.system import _format_st_auth_error, _format_st_response_error
 from core.services.beautify_service import BeautifyService
 from core.services.st_auth import STAuthError, build_st_http_client
+from core.services.tavern_theme import activate_sent_theme
 from core.services.tauri_tavern_client import (
     build_tauri_tavern_client,
     is_tauri_tavern_target,
@@ -133,6 +135,69 @@ def _parse_st_success_response(response):
         return response.json()
     except (ValueError, TypeError):
         return response.text or 'OK'
+
+
+def _json_object(response):
+    try:
+        payload = response.json()
+    except (ValueError, TypeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _restore_st_theme_state(st_client, auth_type, theme_name, previous_theme, previous_settings):
+    state_errors = []
+    apply_errors = []
+    state_failed = False
+    state_unknown = False
+
+    def post(path, payload, accepted_statuses=(200,), errors=None):
+        nonlocal state_failed, state_unknown
+        errors = errors if errors is not None else state_errors
+        try:
+            response = st_client.post(path, json=payload, timeout=10)
+        except STAuthError as error:
+            errors.append(_format_st_auth_error(error))
+            if errors is state_errors:
+                state_unknown = True
+            return None
+        if response.status_code not in accepted_statuses:
+            errors.append(_format_st_response_error(response, auth_type))
+            if errors is state_errors:
+                state_failed = True
+            return None
+        return response
+
+    if previous_theme is None:
+        post('/api/themes/delete', {'name': theme_name}, accepted_statuses=(200, 404))
+    else:
+        post('/api/themes/save', previous_theme)
+
+    post('/api/settings/save', previous_settings)
+
+    previous_power_user = previous_settings.get('power_user', {})
+    selected_theme = str(previous_power_user.get('theme') or '').strip()
+    rollback_theme = previous_theme if selected_theme == theme_name else None
+    rollback_response = post('/api/themes/apply', {
+        'theme': rollback_theme,
+        'power_user': previous_power_user,
+        'select_theme': False,
+        'remove_theme_name': '' if previous_theme is not None else theme_name,
+    }, accepted_statuses=(200, 409), errors=apply_errors)
+    rollback_payload = _json_object(rollback_response) if rollback_response is not None else None
+    if (rollback_response is not None and rollback_response.status_code == 200
+            and rollback_payload and rollback_payload.get('applied') is True):
+        rollback_page_state = 'confirmed'
+    elif rollback_payload and rollback_payload.get('applied') is False:
+        rollback_page_state = 'not_confirmed'
+    else:
+        rollback_page_state = 'unknown'
+    if rollback_page_state != 'confirmed':
+        reason = rollback_payload.get('reason') if isinstance(rollback_payload, dict) else ''
+        if reason:
+            apply_errors.append(f'页面恢复响应：{reason}')
+    rollback_state = 'unknown' if state_unknown else ('not_confirmed' if state_failed else 'confirmed')
+    return rollback_state, rollback_page_state, state_errors + apply_errors
 
 
 @bp.route('/list', methods=['GET'])
@@ -392,6 +457,7 @@ def send_theme_to_st():
             'theme_name': theme_name,
             'target_path': result['path'],
             'settings_path': result['settings_path'],
+            'theme_applied': result.get('theme_applied') is True,
             'last_sent_to_tt': last_sent_to_tt,
         })
 
@@ -401,12 +467,30 @@ def send_theme_to_st():
     theme_name = str(theme_payload.get('name') or '').strip()
 
     try:
-        save_response = st_client.post('/api/themes/save', json=theme_payload, timeout=10)
+        capability_response = st_client.post('/api/themes/apply-capabilities', json={}, timeout=10)
     except STAuthError as error:
         return _error(_format_st_auth_error(error))
 
-    if save_response.status_code != 200:
-        return _error(_format_st_response_error(save_response, auth_type))
+    capabilities = _json_object(capability_response) if capability_response.status_code == 200 else None
+    capability_flags = capabilities.get('capabilities') if isinstance(capabilities, dict) else None
+    if not isinstance(capability_flags, dict) or not all(
+        capability_flags.get(name) is True for name in ('theme_apply_v1', 'theme_rollback_v1')
+    ):
+        return jsonify({
+            'success': False,
+            'theme_imported': False,
+            'theme_applied': False,
+            'error': '连接的 ST 不支持安全主题回滚和即时应用，主题未写入；请更新 ST 后重试。',
+        }), 409
+
+    active_clients = capabilities.get('active_clients')
+    if type(active_clients) is not int or active_clients < 1:
+        return jsonify({
+            'success': False,
+            'theme_imported': False,
+            'theme_applied': False,
+            'error': 'ST 当前没有已连接的页面可确认主题应用，请保持 ST 页面打开后重试。',
+        }), 409
 
     try:
         settings_response = st_client.post('/api/settings/get', json={}, timeout=10)
@@ -414,15 +498,70 @@ def send_theme_to_st():
             raise ValueError(_format_st_response_error(settings_response, auth_type))
 
         settings_payload = _parse_st_settings_payload(settings_response)
-        settings_payload['power_user']['theme'] = theme_name
+        previous_settings = deepcopy(settings_payload)
 
-        apply_response = st_client.post('/api/settings/save', json=settings_payload, timeout=10)
-        if apply_response.status_code != 200:
-            raise ValueError(_format_st_response_error(apply_response, auth_type))
+        theme_response = st_client.post('/api/themes/get', json={'name': theme_name}, timeout=10)
+        if theme_response.status_code == 404:
+            previous_theme = None
+        elif theme_response.status_code != 200:
+            raise ValueError(_format_st_response_error(theme_response, auth_type))
+        else:
+            previous_theme = _json_object(theme_response)
+            if not previous_theme or previous_theme.get('name') != theme_name:
+                raise ValueError('远程同名主题数据无效，主题未写入')
     except STAuthError as error:
-        return _error(f'主题已导入 ST，但自动应用失败：{_format_st_auth_error(error)}')
-    except ValueError as exc:
-        return _error(f'主题已导入 ST，但自动应用失败：{exc}')
+        return _error(_format_st_auth_error(error))
+    except ValueError as error:
+        return _error(str(error))
+
+    try:
+        save_response = st_client.post('/api/themes/save', json=theme_payload, timeout=10)
+        if save_response.status_code != 200:
+            raise ValueError(_format_st_response_error(save_response, auth_type))
+
+        activate_sent_theme(settings_payload['power_user'], theme_payload)
+
+        settings_save_response = st_client.post('/api/settings/save', json=settings_payload, timeout=10)
+        if settings_save_response.status_code != 200:
+            raise ValueError(_format_st_response_error(settings_save_response, auth_type))
+
+        apply_response = st_client.post('/api/themes/apply', json={
+            'theme': theme_payload,
+            'power_user': settings_payload['power_user'],
+        }, timeout=10)
+        apply_result = _json_object(apply_response)
+        if apply_response.status_code != 200 or not apply_result or apply_result.get('applied') is not True:
+            reason = apply_result.get('reason') if isinstance(apply_result, dict) else ''
+            raise ValueError(f'ST 页面未确认主题应用{f"：{reason}" if reason else ""}')
+    except (STAuthError, ValueError) as error:
+        detail = _format_st_auth_error(error) if isinstance(error, STAuthError) else str(error)
+        rollback_state, rollback_page_state, rollback_errors = _restore_st_theme_state(
+            st_client, auth_type, theme_name, previous_theme, previous_settings,
+        )
+        rollback_confirmed = rollback_state == 'confirmed' and rollback_page_state == 'confirmed'
+        rollback_applied = rollback_page_state == 'confirmed'
+        rollback_detail = {
+            'confirmed': '已确认远端设置和主题恢复',
+            'not_confirmed': '远端设置和主题恢复未确认',
+            'unknown': '远端设置和主题恢复结果未知',
+        }[rollback_state]
+        page_detail = {
+            'confirmed': '已连接页面已确认恢复旧主题',
+            'not_confirmed': '已连接页面未确认恢复旧主题',
+            'unknown': '无法确认已连接页面是否恢复旧主题',
+        }[rollback_page_state]
+        if rollback_errors:
+            rollback_detail += '；' + '；'.join(rollback_errors)
+        return jsonify({
+            'success': False,
+            'theme_imported': False if rollback_state == 'confirmed' else None,
+            'theme_applied': False,
+            'rollback_confirmed': rollback_confirmed,
+            'rollback_state': rollback_state,
+            'rollback_page_state': rollback_page_state,
+            'rollback_applied': rollback_applied,
+            'error': f'主题应用失败：{detail}；{rollback_detail}；{page_detail}',
+        }), 409
 
     st_response = _parse_st_success_response(save_response)
     ui_data = load_ui_data()
@@ -433,6 +572,8 @@ def send_theme_to_st():
 
     return jsonify({
         'success': True,
+        'theme_imported': True,
+        'theme_applied': True,
         'theme_name': theme_name,
         'st_response': st_response,
         'last_sent_to_st': last_sent_to_st,
