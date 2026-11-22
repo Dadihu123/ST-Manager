@@ -784,6 +784,7 @@ export function initState() {
       auth_lockout_seconds: 900,
       auth_hard_lock_threshold: 50,
       auto_rename_on_import: true,
+      card_update_image_policy: "overwrite",
 
       // Discord 论坛标签抓取配置
       discord_auth_type: "token",

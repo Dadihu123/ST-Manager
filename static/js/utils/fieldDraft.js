@@ -57,6 +57,7 @@ export function createFieldDraft(source, notify = () => {}) {
         baseline() { return clone(baseline); },
         rebase(names, values) {
             for (const field of names) {
+                if (!fields.has(field)) continue;
                 baseline[field] = clone(values[field]);
                 pending.add(field);
             }

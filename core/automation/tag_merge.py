@@ -132,7 +132,7 @@ def _resolve_target(tag, replace_rules):
     return current
 
 
-def merge_tags_with_rules(tags, replace_rules):
+def merge_tags_with_rules(tags, replace_rules, *, filter_targets=None):
     source_tags = _normalize_tag_list(tags)
     if not replace_rules:
         return {
@@ -145,8 +145,12 @@ def merge_tags_with_rules(tags, replace_rules):
     seen = set()
     replacements = []
 
-    for tag in source_tags:
-        target = _resolve_target(tag, replace_rules)
+    targets = {tag: _resolve_target(tag, replace_rules) for tag in source_tags}
+    governance = filter_targets([target for tag, target in targets.items() if target != tag]) if filter_targets else {}
+    blocked_targets = set(governance.get('skipped_unknown', ())) | set(governance.get('skipped_blacklist', ()))
+    for tag, target in targets.items():
+        if target in blocked_targets:
+            target = tag
         if target != tag:
             replacements.append({'from': tag, 'to': target})
 
@@ -157,11 +161,12 @@ def merge_tags_with_rules(tags, replace_rules):
     return {
         'tags': merged,
         'changed': merged != source_tags,
+        **{key: governance[key] for key in ('skipped_unknown', 'skipped_blacklist') if governance.get(key)},
         'replacements': replacements
     }
 
 
-def apply_merge_actions_to_tags(tags, actions, slash_as_separator=False):
+def apply_merge_actions_to_tags(tags, actions, slash_as_separator=False, *, filter_targets=None):
     replace_rules = {}
     applied_actions = 0
 
@@ -176,7 +181,7 @@ def apply_merge_actions_to_tags(tags, actions, slash_as_separator=False):
         replace_rules.update(parsed)
         applied_actions += 1
 
-    merge_result = merge_tags_with_rules(tags, replace_rules)
+    merge_result = merge_tags_with_rules(tags, replace_rules, filter_targets=filter_targets)
     merge_result['replace_rules'] = replace_rules
     merge_result['actions'] = applied_actions
     return merge_result

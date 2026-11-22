@@ -270,6 +270,12 @@ class AutomationExecutor:
         # 1. 执行属性修改 (标签、收藏)
         # 这些操作不改变 ID，先执行
         add_tags = list(plan.get('add_tags', []))
+        if add_tags:
+            if ui_data is None:
+                ui_data = load_ui_data()
+            governed = filter_governed_tags(add_tags, ui_data=ui_data)
+            add_tags = governed['accepted']
+            result.update({key: tags for key, tags in build_governance_feedback(governed).items() if tags})
         remove_tags = list(plan.get('remove_tags', []))
         fav = plan.get('favorite')
         

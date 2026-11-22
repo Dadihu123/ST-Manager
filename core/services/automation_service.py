@@ -32,7 +32,7 @@ from core.automation.tag_merge import apply_merge_actions_to_tags
 from core.context import ctx
 from core.data.ui_store import load_ui_data
 from core.services.card_service import modify_card_attributes_internal, resolve_ui_key
-from core.services.tag_management_service import build_governance_feedback
+from core.services.tag_management_service import build_governance_feedback, filter_governed_tags
 from core.utils.tag_parser import split_action_tags
 from core.utils.image import extract_card_info
 from core.utils.text import calculate_all_worldbook_token_count
@@ -470,7 +470,8 @@ def auto_run_tag_merge_on_tagging(card_id, tags, ui_data=None, runtime=None):
         merge_result = apply_merge_actions_to_tags(
             tags,
             merge_actions,
-            slash_as_separator=slash_as_separator
+            slash_as_separator=slash_as_separator,
+            filter_targets=lambda targets: filter_governed_tags(targets, ui_data=ui_data),
         )
 
         return {

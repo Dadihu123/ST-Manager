@@ -2,6 +2,13 @@
 "components/icon.html" import detail_icon, icon, sidebar_icon %} {% from
 "components/styled_select.html" import styled_select %}
 
+{% macro create_card_button(button_class) -%}
+  <button x-show="currentMode === 'cards'" type="button" class="{{ button_class }}"
+    @click="$dispatch('open-create-card')" title="新建角色卡" aria-label="新建角色卡">
+    {{ icon('plus-square', 'ui-icon--md') }}
+  </button>
+{%- endmacro %}
+
 <div class="header-bar" x-data="header">
   <!-- 移动端：紧凑单行布局 -->
   <div x-show="deviceType === 'mobile'" class="mobile-header-compact">
@@ -83,6 +90,7 @@
               class="mobile-search-input"
             />
           </div>
+          {{ create_card_button('mobile-upload-btn') }}
           <button
             x-show="showMobileUploadButton"
             type="button"
@@ -880,6 +888,7 @@
 
     <!-- 工具按钮组 -->
     <div class="tool-buttons header-tool-buttons">
+      {{ create_card_button('header-tool-btn') }}
       <button
         @click="currentMode === 'cards' ? openGachaDraw() : randomByMode()"
         :title="currentMode === 'cards' ? '抽卡：单抽 / 十连抽' : (currentMode === 'worldinfo' ? '手气不错，随机世界书' : '手气不错，随机聊天')"

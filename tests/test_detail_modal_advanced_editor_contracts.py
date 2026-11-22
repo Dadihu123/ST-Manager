@@ -211,6 +211,35 @@ def test_detail_modal_runtime_apply_persisted_mutation_syncs_id_and_revision():
     )
 
 
+def test_detail_modal_cover_swap_keeps_only_real_edits_dirty():
+    run_detail_modal_runtime_check(
+        """
+        modal.activeCard = { id: 'hero.json', filename: 'hero.json' };
+        modal.editingData = { id: 'hero.json', filename: 'hero.json', description: 'saved' };
+        modal._resetDraftBaseline();
+        modal._applyPersistedCardMutation({
+          success: true, new_card_id: 'hero.png', source_revision: '20:2',
+          new_image_url: '/cards_file/hero.png', new_thumb_url: '/thumb/hero.png',
+        });
+        if (modal.hasUnsavedChanges) throw new Error('saved cover swap should allow closing');
+
+        modal.editingData.description = 'draft';
+        modal.editingData.filename = 'renamed.png';
+        modal._applyPersistedCardMutation({
+          success: true, updated_card: { filename: 'hero.png', source_revision: '30:3' },
+          new_image_url: '/cards_file/hero.png',
+        });
+        if (!modal.hasUnsavedChanges || modal.editingData.description !== 'draft'
+          || modal.editingData.filename !== 'renamed.png') {
+          throw new Error('cover swap must preserve unsaved text and filename edits');
+        }
+        modal.editingData.description = 'saved';
+        modal.editingData.filename = 'hero.png';
+        if (modal.hasUnsavedChanges) throw new Error('reverting the drafts should allow closing');
+        """
+    )
+
+
 def test_detail_modal_runtime_save_sends_clear_ui_fields_only_when_unbound():
     """保存时只有「本来就没有绑定」才声明清空，避免误清资源目录。"""
     run_detail_modal_runtime_check(

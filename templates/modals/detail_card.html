@@ -445,6 +445,21 @@
 
       <!-- 右侧：内容 + Tab -->
       <section class="detail-right" id="detail-mobile-content-panel">
+        <div
+          x-show="indexSyncRetryable || indexSyncRetryPending"
+          class="flex items-center justify-between gap-3 px-4 py-2 color-surface-container border-b color-border-subtle"
+          role="status"
+        >
+          <span class="text-sm" x-text="indexSyncRetryPending ? '角色卡索引重试已排队' : '角色卡已创建，但尚未加入列表索引' "></span>
+          <button
+            type="button"
+            class="btn-secondary"
+            @click="retryCreatedCardIndex()"
+            :disabled="indexSyncRetrying"
+          >
+            <span x-text="indexSyncRetrying ? '正在重试…' : '重试索引'"></span>
+          </button>
+        </div>
         <!-- 顶部栏：标题 / token / 快捷操作 -->
         <header
           class="detail-topbar"
@@ -3073,6 +3088,16 @@
                         >
                           {{ icon('link-import', 'ui-icon--lg') }}
                           <span>URL 更新</span>
+                        </button>
+                        <button
+                          type="button"
+                          x-show="retryUpdateFile"
+                          :disabled="isSaving"
+                          @click="processUpdateFile(retryUpdateFile, null)"
+                          class="btn-secondary detail-manage-action-btn"
+                        >
+                          {{ icon('refresh', 'ui-icon--lg') }}
+                          <span>重试文件更新</span>
                         </button>
                         <button
                           type="button"

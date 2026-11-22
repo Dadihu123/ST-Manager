@@ -38,6 +38,7 @@ import logging
 import os
 import re
 import shutil
+import tempfile
 from datetime import datetime
 
 from flask import Blueprint
@@ -56,7 +57,9 @@ from core.data.ui_store import (
 from core.plugins import hooks, job_store
 from core.plugins import secrets as secrets_store
 from core.plugins.errors import PluginLoadError
-from core.services.tag_management_service import build_known_tag_set, filter_governed_tags
+from core.services.tag_management_service import (
+    build_known_tag_set, card_tag_list, filter_governed_tags, govern_card_tag_additions,
+)
 from core.utils.filesystem import cleanup_old_snapshots, write_snapshot_file
 from core.utils.hash import get_file_hash_and_size
 from core.utils.image import extract_card_info, find_sidecar_image, write_card_metadata
@@ -666,6 +669,7 @@ class PluginAPI:
             if not isinstance(info, dict):
                 return False
 
+            previous_tags = card_tag_list(info) if 'tags' in patch else []
             data_block = info.get('data') if isinstance(info.get('data'), dict) else None
             for key, value in patch.items():
                 if key not in CARD_FIELD_KEYS:
@@ -673,6 +677,9 @@ class PluginAPI:
                 info[key] = value
                 if data_block is not None:
                     data_block[key] = value
+
+            if 'tags' in patch:
+                govern_card_tag_additions(info, previous_tags=previous_tags)
 
             with self._suppress_fs_events():
                 if not write_card_metadata(full_path, info):
@@ -1566,14 +1573,31 @@ class PluginAPI:
         if not is_under_base(os.path.realpath(candidate), expected_dir, resolve_symlinks=True):
             return {'success': False, 'msg': '快照不属于该卡片', 'error': 'snapshot_out_of_scope'}
 
-        safety = self._snapshot_card(card_id, remark='before-restore') if os.path.isfile(full_path) else None
-
         with self._card_lock(card_id), self._suppress_fs_events():
+            safety = None
             try:
+                try:
+                    os.stat(full_path)
+                except FileNotFoundError:
+                    previous = None
+                else:
+                    previous = extract_card_info(full_path)
+                    if not previous:
+                        raise OSError('无法读取当前角色卡的标签')
+                    safety = self._snapshot_card(card_id, remark='before-restore')
+
                 target_dir = os.path.dirname(full_path)
-                if target_dir:
-                    os.makedirs(target_dir, exist_ok=True)
-                shutil.copy2(candidate, full_path)
+                os.makedirs(target_dir, exist_ok=True)
+                with tempfile.TemporaryDirectory(dir=target_dir, prefix='.snapshot-restore-') as stage:
+                    staged = os.path.join(stage, os.path.basename(full_path))
+                    shutil.copy2(candidate, staged)
+                    info = extract_card_info(staged)
+                    if not info:
+                        raise OSError('无法读取快照中的角色卡')
+                    if govern_card_tag_additions(info, previous_tags=card_tag_list(previous or {})):
+                        if not write_card_metadata(staged, info, prepare_intent=False):
+                            raise OSError('无法写入恢复后的角色卡标签')
+                    os.replace(staged, full_path)
                 sidecar_src = _sidecar_for_snapshot(candidate)
                 if sidecar_src:
                     sidecar_dst = find_sidecar_image(full_path)
@@ -1585,9 +1609,7 @@ class PluginAPI:
                     'safety_snapshot': safety or '',
                 }
 
-            info = extract_card_info(full_path)
-            if isinstance(info, dict):
-                self._sync_card_index(card_id, full_path, info)
+            self._sync_card_index(card_id, full_path, info)
 
         return {
             'success': True,

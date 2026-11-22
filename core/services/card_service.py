@@ -10,7 +10,7 @@ from PIL import Image
 from urllib.parse import quote
 
 # === 基础设施 ===
-from core.config import CARDS_FOLDER, DEFAULT_DB_PATH, THUMB_FOLDER, BASE_DIR, load_config
+from core.config import CARDS_FOLDER, DEFAULT_DB_PATH, THUMB_FOLDER, BASE_DIR, INTERNAL_DIR, load_config
 from core.context import ctx
 from core.data.db_session import get_db
 from core.data.ui_store import (
@@ -28,7 +28,8 @@ from core.data.ui_store import (
     rename_resource_item_category_path_prefix,
 )
 from core.consts import RESERVED_RESOURCE_NAMES
-from core.services.card_operation_lock import card_operation_locked
+from core.services.card_operation_lock import card_file_locks, card_operation_locked
+from core.services.tag_management_service import card_tag_list, govern_card_tag_additions
 from core.services.card_binding_service import ensure_card_ui_uid, rename_card_ui_references
 from core.services.card_resource_binding_service import (
     bind_card_resource_folder,
@@ -52,7 +53,7 @@ from core.services.wi_entry_history_service import (
 # === 工具函数 ===
 from core.utils.image import (
     extract_card_info, write_card_metadata, resize_image_if_needed,
-    clean_thumbnail_cache, find_sidecar_image, clean_sidecar_images
+    clean_thumbnail_cache, find_sidecar_image, clean_sidecar_images, save_card_image_atomic
 )
 from core.utils.filesystem import save_json_atomic, sanitize_filename
 from core.utils.text import calculate_token_count
@@ -63,6 +64,134 @@ from core.utils.card_identity import normalize_card_uid
 from core.automation.replace_text import apply_replace_text
 
 logger = logging.getLogger(__name__)
+
+
+def create_character_card(name, category, cover, *, cards_root=CARDS_FOLDER):
+    """Create an editable PNG character card and refresh its list entry."""
+    if not isinstance(name, str) or not (name := name.strip()) or len(name) > 100 or '\x00' in name:
+        raise ValueError('请输入 1 至 100 字的角色名')
+    if cover not in ('unknown', 'tool'):
+        raise ValueError('请选择内置角色卡封面')
+
+    root = os.path.realpath(cards_root)
+    folder = os.path.realpath(os.path.join(root, category))
+    if os.path.normcase(os.path.commonpath([root, folder])) != os.path.normcase(root):
+        raise ValueError('非法目标路径')
+    if not os.path.isdir(folder):
+        raise ValueError('目标分类不存在，请刷新列表')
+
+    stem = sanitize_filename(name).encode('utf-8')[:220].decode('utf-8', 'ignore').rstrip('. ') or '角色卡'
+    cover_path = os.path.join(INTERNAL_DIR, 'static', 'images', 'card-covers', f'{cover}.png')
+    info = {
+        'spec': 'chara_card_v3',
+        'spec_version': '3.0',
+        'data': {
+            'name': name, 'description': '', 'personality': '', 'scenario': '',
+            'first_mes': '', 'mes_example': '', 'creator_notes': '', 'system_prompt': '',
+            'post_history_instructions': '', 'alternate_greetings': [],
+            'group_only_greetings': [], 'tags': [], 'creator': '', 'character_version': '',
+            'extensions': {},
+        },
+    }
+    suffix = 0
+    with Image.open(cover_path) as image:
+        while True:
+            filename = f'{stem}_{suffix}.png' if suffix else f'{stem}.png'
+            path = os.path.join(folder, filename)
+            with card_file_locks(path):
+                if not (os.path.lexists(path) or os.path.lexists(os.path.splitext(path)[0] + '.json')):
+                    save_card_image_atomic(path, image, info)
+                    card_id = os.path.relpath(path, root).replace('\\', '/')
+                    cache_result = {}
+                    try:
+                        cache_result = update_card_cache(card_id, path) or {}
+                    except Exception:
+                        logger.exception('新角色卡已写入，但更新元数据缓存失败: %s', card_id)
+
+                    index_ready = False
+                    try:
+                        index_ready = bool(_apply_card_index_increment_now(
+                            card_id, path, file_metadata_applied=True,
+                        ) and cache_result.get('cache_updated'))
+                    except Exception:
+                        logger.exception('新角色卡已写入，但同步列表索引失败: %s', card_id)
+                    index_sync_pending = False
+                    if not index_ready:
+                        try:
+                            sync_result = sync_card_index_jobs(
+                                card_id=card_id,
+                                source_path=path,
+                                file_content_changed=True,
+                                cache_updated=bool(cache_result.get('cache_updated')),
+                                has_embedded_wi=False,
+                                card_created=True,
+                                refresh_file=True,
+                            )
+                            index_sync_pending = bool((sync_result or {}).get('upsert_card'))
+                        except Exception:
+                            logger.exception('新角色卡已写入，但无法排入索引重试任务: %s', card_id)
+                    break
+            suffix += 1
+
+    try:
+        mtime = os.path.getmtime(path)
+    except OSError:
+        logger.exception('新角色卡已写入，但无法读取文件时间: %s', card_id)
+        mtime = time.time()
+    card = {
+        'id': card_id, 'filename': filename, 'char_name': name, 'category': category,
+        'tags': [], 'import_time': mtime, 'last_modified': mtime,
+        'index_ready': bool(index_ready),
+        'index_sync_pending': bool(index_sync_pending),
+        'index_sync_retryable': not index_ready and not index_sync_pending,
+        **card_image_urls(card_id, path),
+    }
+    if ctx.cache is not None:
+        try:
+            ctx.cache.add_card_update(dict(card))
+        except Exception:
+            logger.exception('新角色卡已写入，但无法立即更新内存列表: %s', card_id)
+    return card
+
+
+def retry_created_card_index(card_id, source_path):
+    """Rebuild metadata and index projections for an already-created card file."""
+    try:
+        cache_result = update_card_cache(card_id, source_path) or {}
+    except Exception:
+        logger.exception('重试角色卡索引时更新元数据失败: %s', card_id)
+        cache_result = {}
+
+    index_ready = False
+    if cache_result.get('cache_updated'):
+        try:
+            index_ready = bool(_apply_card_index_increment_now(
+                card_id, source_path, file_metadata_applied=True,
+            ))
+        except Exception:
+            logger.exception('重试角色卡索引时同步列表失败: %s', card_id)
+
+    index_sync_pending = False
+    if not index_ready:
+        try:
+            sync_result = sync_card_index_jobs(
+                card_id=card_id,
+                source_path=source_path,
+                file_content_changed=True,
+                cache_updated=bool(cache_result.get('cache_updated')),
+                has_embedded_wi=bool(cache_result.get('has_embedded_wi')),
+                card_created=True,
+                refresh_file=True,
+            )
+            index_sync_pending = bool((sync_result or {}).get('upsert_card'))
+        except Exception:
+            logger.exception('重试角色卡索引时无法排队: %s', card_id)
+
+    return {
+        'index_ready': index_ready,
+        'index_sync_pending': index_sync_pending,
+        'index_sync_retryable': not index_ready and not index_sync_pending,
+    }
 
 
 def reconcile_card_ui_fields(card_id, leader_id, *, bundle_dir='', loader=None):
@@ -288,14 +417,17 @@ def cleanup_embedded_worldbook_history(
     )
 
 
-def _apply_card_index_increment_now(card_id, source_path, remove_entity_ids=None):
+def _apply_card_index_increment_now(card_id, source_path, remove_entity_ids=None, *, file_metadata_applied=False):
     from core.services.index_job_worker import apply_card_increment_and_ack
     try:
         with connect_index_db(DEFAULT_DB_PATH) as conn:
-            apply_card_increment_and_ack(conn, card_id, source_path, remove_entity_ids=remove_entity_ids)
+            apply_card_increment_and_ack(conn, card_id, source_path, remove_entity_ids=remove_entity_ids,
+                                         file_metadata_applied=file_metadata_applied)
+            return True
     except RuntimeError as exc:
         if 'cards active generation missing' not in str(exc):
             raise
+        return False
 
 # 内部辅助函数：获取或创建资源目录
 def _ensure_resource_folder_exists(card_id, hint_name):
@@ -489,6 +621,7 @@ def update_card_content(
     old_info_raw = {}
     if os.path.exists(original_full_path) and not is_bundle_update:
          old_info_raw = extract_card_info(original_full_path) or {}
+    previous_tags = card_tag_list(old_info_raw)
     
     # C. 合并策略：以旧数据为基础，覆盖核心字段，保留 V3 扩展字段
     final_info = old_info_raw.copy() if old_info_raw else new_info_raw.copy()
@@ -518,7 +651,11 @@ def update_card_content(
         if 'name' in final_info: 
             final_info['name'] = source_block['name']
             
-    # 应用前端传递的 Tags (优先级最高)
+    if is_bundle_update and ('tags' in keep_ui_data or 'tags' in source_block):
+        previous_tags = card_tag_list(extract_card_info(original_full_path) or {})
+    if 'tags' in source_block:
+        govern_card_tag_additions(final_info, previous_tags=previous_tags)
+    # Detail edits are explicit user choices; governance applies only to imported tags.
     if 'tags' in keep_ui_data:
         target_block['tags'] = keep_ui_data['tags']
 
@@ -643,9 +780,11 @@ def update_card_content(
         elif image_policy == 'archive_new':
             if new_upload_ext == '.png':
                 try:
-                    _archive_file(temp_path, "archived_upload")
+                    if not _archive_file(temp_path, 'archived_upload'):
+                        return {'success': False, 'error': 'archive_failed', 'msg': '归档新封面失败，已取消更新'}
                 except ResourceFolderBindingError as exc:
-                    return {'success': False, 'msg': f'资源目录绑定保存失败，已取消更新: {exc}'}
+                    return {'success': False, 'error': 'archive_failed',
+                            'msg': f'资源目录绑定保存失败，已取消更新: {exc}'}
 
         # 2.2 确定图片源 (Pixel Source)
         # 默认使用新上传的图片

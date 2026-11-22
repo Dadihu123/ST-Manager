@@ -5,6 +5,30 @@
 
 import { downloadFileFromApi } from '../utils/download.js';
 
+export async function createCharacterCard(payload) {
+    const response = await fetch('/api/cards/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+    return response.json();
+}
+
+export async function getCardIndexJobStatus(cardId) {
+    const searchParams = new URLSearchParams({ card_id: cardId });
+    const response = await fetch(`/api/cards/index-status?${searchParams.toString()}`);
+    return response.json();
+}
+
+export async function retryCreatedCardIndex(cardId) {
+    const response = await fetch('/api/cards/index-retry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ card_id: cardId }),
+    });
+    return response.json();
+}
+
 // 获取角色卡列表
 export async function listCards(params) {
     // params: { page, page_size, category, tags, search, search_type, sort, recursive }

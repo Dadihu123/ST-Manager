@@ -5,6 +5,8 @@
 
 import { 
     getCardDetail, 
+    getCardIndexJobStatus as getCardIndexJobStatusApi,
+    retryCreatedCardIndex as retryCreatedCardIndexApi,
     updateCard, 
     previewMergedTags,
     updateCardFile, 
@@ -93,6 +95,7 @@ export default function detailModal() {
         _basicSplitPointerMoveHandler: null,
         _basicSplitPointerUpHandler: null,
         updateImagePolicy: 'overwrite', // 默认策略
+        retryUpdateFile: null,
         updateCreatorPolicy: 'preserve', // 覆盖升级时默认保留已有创作者
         sourceUpdateChecking: false,
         sourceUpdateAcknowledging: false,
@@ -137,6 +140,10 @@ export default function detailModal() {
         isSendingToST: false,
         detailLoading: false,
         detailLoadError: '',
+        indexSyncRetryable: false,
+        indexSyncRetryPending: false,
+        indexSyncRetrying: false,
+        indexSyncWatchToken: 0,
         detailRequestToken: 0,
         // 详情页当前编辑态对应的文件修订号；用于识别乱序到达的陈旧响应。
         // 见 docs/2026-10-19-card-resource-binding-and-save-failure-analysis.md
@@ -399,28 +406,29 @@ export default function detailModal() {
             if (!res || res.success === false) return;
             const updatedCard = res.updated_card || null;
             const newId = res.new_card_id || res.new_id || '';
-            const newFilename = res.new_filename || (newId ? String(newId).split('/').pop() : '');
+            const idChanged = Boolean(newId && newId !== this.editingData.id);
+            const newFilename = res.new_filename || updatedCard?.filename || (newId ? String(newId).split('/').pop() : '');
 
             if (updatedCard && typeof updatedCard === 'object') {
                 Object.assign(this.activeCard, updatedCard);
             }
-            if (newId && newId !== this.editingData.id) {
+            if (idChanged) {
                 this.activeCard.id = newId;
                 this.editingData.id = newId;
             }
             if (newFilename) {
                 this.activeCard.filename = newFilename;
-                this.editingData.filename = newFilename;
+                if (!fieldDraft?.dirtyFields().includes('filename')) {
+                    this.editingData.filename = newFilename;
+                }
             }
 
             const revision = String(
                 res.source_revision || updatedCard?.source_revision || this.editingData.source_revision || ''
             ).trim();
-            if (revision && this._isRevisionNewer(revision, this.editingRevision)) {
-                this.editingRevision = revision;
-                this.editingData.source_revision = revision;
-                this.activeCard.source_revision = revision;
-            } else if (revision && !this.editingRevision) {
+            const hasReturnedRevision = Boolean(res.source_revision || updatedCard?.source_revision);
+            if (revision && hasReturnedRevision
+                && (idChanged || !this.editingRevision || this._isRevisionNewer(revision, this.editingRevision))) {
                 this.editingRevision = revision;
                 this.editingData.source_revision = revision;
                 this.activeCard.source_revision = revision;
@@ -444,10 +452,10 @@ export default function detailModal() {
             }
 
             this._syncPersistedBaseline(
-                ['id', 'filename', 'source_revision', 'image_url', 'thumb_url'],
+                ['id', 'source_revision', 'image_url', 'thumb_url', ...(newFilename ? ['filename'] : [])],
                 {
                     id: this.editingData.id,
-                    filename: this.editingData.filename,
+                    filename: newFilename,
                     source_revision: this.editingData.source_revision,
                     image_url: this.activeCard.image_url,
                     thumb_url: this.activeCard.thumb_url,
@@ -1692,7 +1700,6 @@ export default function detailModal() {
                     this.detailLoading = false;
                     this.detailLoadError = '';
                     this.isSendingToST = false;
-                    this.updateImagePolicy = 'overwrite';
                     this.updateCreatorPolicy = 'preserve';
                     this.sourceUpdateChecking = false;
                     this.sourceUpdateAcknowledging = false;
@@ -2353,6 +2360,8 @@ export default function detailModal() {
         // === 打开详情页逻辑 (数据清洗与加载) ===
         openDetail(c) {
             // 重置状态
+            this.resetUpdateImagePolicy();
+            this.retryUpdateFile = null;
             this.stopAutoSave();
             this.isSaving = false;
             saveSequence += 1;
@@ -2364,6 +2373,10 @@ export default function detailModal() {
             this.detailLoading = true;
             this.detailLoadError = '';
             this.activeCard = c;
+            this.indexSyncWatchToken += 1;
+            this.indexSyncRetryable = c?.index_sync_retryable === true;
+            this.indexSyncRetryPending = false;
+            this.indexSyncRetrying = false;
             this.sourceUpdateChecking = false;
             this.editingRevision = String(c?.source_revision || '').trim();
             this.lastPersistedResourceFolder = String(c?.resource_folder || '').trim();
@@ -2378,7 +2391,7 @@ export default function detailModal() {
             this.dialogPage = 'greeting';
             this.selectedGreetingKind = 'default';
             this.showGreetingPreview = true;
-            this.isEditMode = false;
+            this.isEditMode = c?.editOnOpen === true;
             this.resetPersonaFieldState();
             this.altIdx = 0;
             this.detailAltDragIndex = null;
@@ -2469,6 +2482,64 @@ export default function detailModal() {
 
             // 后台获取完整数据 (确保是最新的)
             this.refreshActiveCardDetail(c.id);
+        },
+
+        async retryCreatedCardIndex() {
+            if (this.indexSyncRetrying || !this.activeCard?.id) return;
+            this.indexSyncRetrying = true;
+            try {
+                const result = await retryCreatedCardIndexApi(this.activeCard.id);
+                if (result.success && result.index_ready) {
+                    this.indexSyncRetryable = false;
+                    this.indexSyncRetryPending = false;
+                    this.$store.global.showToast('角色卡已加入列表索引', 2600, 'check');
+                    window.dispatchEvent(new Event('refresh-card-list'));
+                } else if (result.success && result.index_sync_pending) {
+                    this.indexSyncRetryable = false;
+                    this.indexSyncRetryPending = true;
+                    this.$store.global.showToast('索引重试任务已排队', 2600, 'check');
+                    this.waitForCreatedCardIndex(this.activeCard.id, 0, this.indexSyncWatchToken);
+                } else {
+                    this.indexSyncRetryable = true;
+                    this.indexSyncRetryPending = false;
+                    this.$store.global.showToast(result.msg || '索引重试失败，请稍后再试', 3200, 'close');
+                }
+            } catch (_error) {
+                this.indexSyncRetryable = true;
+                this.indexSyncRetryPending = false;
+                this.$store.global.showToast('索引重试失败，请稍后再试', 3200, 'close');
+            } finally {
+                this.indexSyncRetrying = false;
+            }
+        },
+
+        waitForCreatedCardIndex(cardId, attempt, watchToken) {
+            const delays = [1000, 2000, 4000, 8000, 15000, 30000];
+            if (attempt >= delays.length) {
+                this.indexSyncRetryPending = false;
+                this.indexSyncRetryable = true;
+                return;
+            }
+            setTimeout(async () => {
+                if (watchToken !== this.indexSyncWatchToken || !this.showDetail || this.activeCard?.id !== cardId) return;
+                try {
+                    const status = await getCardIndexJobStatusApi(cardId);
+                    if (status.success && status.status === 'done') {
+                        this.indexSyncRetryPending = false;
+                        this.indexSyncRetryable = false;
+                        window.dispatchEvent(new Event('refresh-card-list'));
+                        return;
+                    }
+                    if (status.success && status.status === 'failed') {
+                        this.indexSyncRetryPending = false;
+                        this.indexSyncRetryable = true;
+                        return;
+                    }
+                } catch (_error) {
+                    // Retry status reads after transient request failures.
+                }
+                this.waitForCreatedCardIndex(cardId, attempt + 1, watchToken);
+            }, delays[attempt]);
         },
 
         // 刷新当前卡片数据 (从后端)
@@ -2811,6 +2882,7 @@ export default function detailModal() {
         },
 
         processUpdateFile(file, inputElement) {
+            if (this.isSaving) return;
             if (!file.name.toLowerCase().endsWith('.png') && !file.name.toLowerCase().endsWith('.json')) {
                 alert("请上传 PNG 或 JSON 格式");
                 if(inputElement) inputElement.value = '';
@@ -2818,7 +2890,7 @@ export default function detailModal() {
             }
 
             let isBundleUpdate = false;
-            let finalPolicy = this.updateImagePolicy; // 获取当前选中的策略
+            const finalPolicy = this.updateImagePolicy;
             
             if (this.activeCard.is_bundle) {
                 if (confirm(`检测到这是聚合角色包。\n\n[确定] = 添加为新版本 (推荐)\n[取消] = 覆盖当前选中的版本文件`)) {
@@ -2848,7 +2920,17 @@ export default function detailModal() {
             }));
             formData.append('creator_policy', this.updateCreatorPolicy || 'preserve');
 
-            this.performUpdate(formData, '/api/update_card_file', inputElement);
+            this.resetUpdateImagePolicy();
+            this.retryUpdateFile = null;
+            this.performUpdate(formData, inputElement);
+        },
+
+        resetUpdateImagePolicy() {
+            this.updateImagePolicy = this.$store?.global?.settingsForm?.card_update_image_policy || 'overwrite';
+        },
+
+        _isCurrentCardOperation(cardId, detailToken) {
+            return this.showDetail && this.editingData.id === cardId && this.detailRequestToken === detailToken;
         },
 
         // 辅助显示策略名称
@@ -2864,17 +2946,21 @@ export default function detailModal() {
 
         // 皮肤设为封面逻辑
         setSkinAsCover(skinFilename) {
+            if (this.isSaving) return;
             if (!confirm("确定将此皮肤设为封面吗？" + (this.saveOldCoverOnSwap ? "\n(当前封面将保存到资源目录)" : "\n(当前封面将被覆盖)"))) return;
 
+            const cardId = this.editingData.id;
+            const detailToken = this.detailRequestToken;
             this.isSaving = true;
             setSkinAsCover({
-                card_id: this.activeCard.id,
+                card_id: cardId,
                 skin_filename: skinFilename,
                 save_old: this.saveOldCoverOnSwap
             }).then(res => {
+                if (!this._isCurrentCardOperation(cardId, detailToken)) return;
                 this.isSaving = false;
                 if (res.success) {
-                this.$store.global.showToast("封面已切换", 3000, "check");
+                    this.$store.global.showToast("封面已切换", 3000, "check");
 
                     // 换封会改写卡文件（JSON 卡还会换 ID），必须把新 ID 与新修订号
                     // 同步进编辑态，否则下一次保存会被乐观锁拒绝。见换封分析文档 4.3。
@@ -2891,12 +2977,14 @@ export default function detailModal() {
                     alert("操作失败: " + res.msg);
                 }
             }).catch(e => {
+                if (!this._isCurrentCardOperation(cardId, detailToken)) return;
                 this.isSaving = false;
                 alert(e);
             });
         },
 
         triggerUrlUpdate() {
+            if (this.isSaving) return;
             const url = prompt("请输入新的角色卡图片链接 (PNG/WEBP):");
             if (!url) return;
 
@@ -2915,6 +3003,9 @@ export default function detailModal() {
                 }
             }
 
+            this.resetUpdateImagePolicy();
+            const cardId = this.editingData.id;
+            const detailToken = this.detailRequestToken;
             this.isSaving = true;
             // Bundle 新增版本时，不传 ui_summary（新版本应该无备注）
             updateCardFileFromUrl({
@@ -2930,20 +3021,32 @@ export default function detailModal() {
                     tags: this.editingData.tags,
                     creator: this.editingData.creator
                 }
-            }).then(res => this.handleUpdateResponse(res))
-              .catch(err => { this.isSaving = false; alert(err); });
+            }).then(res => {
+                if (!this._isCurrentCardOperation(cardId, detailToken)) return;
+                if (res.error === 'archive_failed') this.retryUpdateFile = null;
+                this.handleUpdateResponse(res);
+            }).catch(err => {
+                if (!this._isCurrentCardOperation(cardId, detailToken)) return;
+                this.isSaving = false;
+                alert(err);
+            });
         },
 
-        performUpdate(formData, url, inputElement) {
+        performUpdate(formData, inputElement) {
+            const cardId = this.editingData.id;
+            const detailToken = this.detailRequestToken;
             this.isSaving = true;
             // 使用通用 fetch (或者 api/card.js 中的 updateCardFile)
             // 这里为了通用性，直接用 fetch 或调用 API 模块
             updateCardFile(formData)
                 .then(res => {
+                    if (!this._isCurrentCardOperation(cardId, detailToken)) return;
+                    if (res.error === 'archive_failed') this.retryUpdateFile = formData.get('new_card');
                     this.handleUpdateResponse(res);
                     if(inputElement) inputElement.value = '';
                 })
                 .catch(err => {
+                    if (!this._isCurrentCardOperation(cardId, detailToken)) return;
                     this.isSaving = false;
                     alert("网络错误: " + err);
                     if(inputElement) inputElement.value = '';
@@ -2953,6 +3056,7 @@ export default function detailModal() {
         handleUpdateResponse(res) {
             this.isSaving = false;
             if (res.success) {
+                this.retryUpdateFile = null;
                 this.$store.global.showToast("更新成功", 2000, "check");
                 const updatedCard = res.updated_card;
                 if (updatedCard) {
@@ -3701,13 +3805,16 @@ export default function detailModal() {
 
         handleImageUpload(e) {
             const file = e.target.files[0];
-            if (!file) return;
+            if (!file || this.isSaving) return;
+            const cardId = this.editingData.id;
+            const detailToken = this.detailRequestToken;
             const formData = new FormData();
-            formData.append('id', this.editingData.id);
+            formData.append('id', cardId);
             formData.append('image', file);
             
             this.isSaving = true;
             changeCardImage(formData).then(res => {
+                if (!this._isCurrentCardOperation(cardId, detailToken)) return;
                 this.isSaving = false;
                 if (res.success) {
                     // 换图会改写卡文件（JSON→PNG 还会换 ID），统一走持久化结果吸收逻辑，
@@ -3715,6 +3822,10 @@ export default function detailModal() {
                     this._applyPersistedCardMutation(res, { refreshListEvent: 'refresh-card-list' });
                     e.target.value = '';
                 } else alert(res.msg);
+            }).catch(error => {
+                if (!this._isCurrentCardOperation(cardId, detailToken)) return;
+                this.isSaving = false;
+                alert(error);
             });
         },
 

@@ -148,6 +148,7 @@ ST Manager 使用项目根目录的 `config.json`。文件不存在时，`app.py
 | 键 | 默认值 | 说明 |
 | --- | --- | --- |
 | `auto_rename_on_import` | `true` | 导入时是否根据角色名自动重命名文件；冲突时仍会追加序号 |
+| `card_update_image_policy` | `overwrite` | 从文件或 URL 更新角色卡时的默认封面策略。也可设为 `keep_image`（保留原图）、`archive_old`（归档旧图后覆盖）或 `archive_new`（新图归档为皮肤） |
 | `discord_auth_type` | `token` | Discord 标签读取方式：`token` 或 `cookie` |
 | `discord_bot_token` | `""` | Discord Bot Token；需要访问目标论坛的权限 |
 | `discord_user_cookie` | `""` | 浏览器复制的 Discord Cookie |

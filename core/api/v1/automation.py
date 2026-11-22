@@ -20,6 +20,7 @@ from core.automation.constants import (
 from core.automation.normalizer import normalize_actions_for_context
 from core.context import ctx
 from core.services.card_service import modify_card_attributes_internal
+from core.services.tag_management_service import filter_governed_tags
 from core.data.ui_store import load_ui_data
 from core.data.db_session import get_db
 from core.config import load_config
@@ -280,7 +281,8 @@ def execute_rules():
                 merge_result = apply_merge_actions_to_tags(
                     current_tags,
                     merge_actions,
-                    slash_as_separator=slash_as_separator
+                    slash_as_separator=slash_as_separator,
+                    filter_targets=lambda targets: filter_governed_tags(targets, ui_data=ui_data),
                 )
 
                 if merge_result.get('changed'):

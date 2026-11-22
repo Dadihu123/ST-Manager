@@ -41,6 +41,8 @@ def sync_card_index_jobs(
     resource_folder_changed=False,
     remove_entity_ids=None,
     remove_owner_ids=None,
+    card_created=False,
+    refresh_file=False,
     card_already_queued=False,
     worldinfo_already_queued=False,
     conn=None,
@@ -51,14 +53,20 @@ def sync_card_index_jobs(
     cleanup_owner_ids = _normalize_ids(remove_owner_ids)
 
     should_upsert_card = bool(
-        summary_changed
+        card_created
+        or summary_changed
         or favorite_changed
         or tags_changed
         or cleanup_entity_ids
         or ((file_content_changed or rename_changed or force_set_cover) and cache_updated)
     )
     if should_upsert_card and not card_already_queued:
-        payload = {'remove_entity_ids': cleanup_entity_ids} if cleanup_entity_ids else None
+        payload = {}
+        if cleanup_entity_ids:
+            payload['remove_entity_ids'] = cleanup_entity_ids
+        if refresh_file:
+            payload['refresh_file'] = True
+        payload = payload or None
         if payload:
             enqueued = _safe_enqueue('upsert_card', conn=conn, entity_id=card_id, source_path=source_path, payload=payload)
         else:

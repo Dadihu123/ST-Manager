@@ -3,12 +3,13 @@
 <!-- URL 导入模态框 -->
 <div x-data="importModal" x-show="showImportUrlModal" x-cloak class="modal-overlay ui-modal-overlay ui-refresh-surface z-modal-popover">
     <div class="ui-modal-shell import-modal-shell" role="dialog" aria-modal="true" aria-labelledby="import-modal-title"
-        @click.away="if(!conflictData) showImportUrlModal=false">
+        @click.away="if (!conflictData) closeImportModal()">
         
         <!-- Header -->
         <div class="ui-modal-header import-modal-header">
             <h3 id="import-modal-title" class="ui-modal-title flex items-center gap-2">
-                <span x-show="!conflictData" class="inline-flex items-center gap-2">
+                <span x-show="createCardMode">新建角色卡</span>
+                <span x-show="!createCardMode && !conflictData" class="inline-flex items-center gap-2">
                     <span aria-hidden="true">{{ icon('link-import', 'ui-icon--md') }}</span>
                     <span>从 URL 导入角色卡</span>
                 </span>
@@ -17,15 +18,30 @@
                     <span>文件名冲突</span>
                 </span>
             </h3>
-            <button type="button" class="ui-close-button" @click="showImportUrlModal=false" title="关闭导入窗口" aria-label="关闭导入窗口">
+            <button type="button" class="ui-close-button" @click="closeImportModal()" :disabled="creatingCard" aria-label="关闭窗口">
                 {{ icon('close', 'ui-icon--md') }}
             </button>
         </div>
         
         <div class="import-modal-body">
-            <!-- 正常导入表单 -->
             <div x-show="!conflictData" class="import-modal-form">
-                <div>
+                <form id="create-card-form" x-show="createCardMode" class="import-modal-form" @submit.prevent="createCard()">
+                    <label class="form-label" for="new-card-name">角色名</label>
+                    <input id="new-card-name" x-ref="newCardName" class="form-input" x-model="newCardName"
+                        maxlength="100" required :disabled="creatingCard" autocomplete="off">
+                    <fieldset class="create-card-covers" :disabled="creatingCard">
+                        <legend class="form-label">封面</legend>
+                        {% for cover, label in [('unknown', '未知角色卡'), ('tool', '工具卡')] %}
+                        <label class="create-card-cover">
+                            <img src="{{ url_for('static', filename='images/card-covers/' + cover + '.png') }}"
+                                width="80" height="104" alt="">
+                            <span><input type="radio" name="new-card-cover" x-model="newCardCover" value="{{ cover }}"> {{ label }}</span>
+                        </label>
+                        {% endfor %}
+                    </fieldset>
+                    <p x-show="newCardError" x-text="newCardError" role="alert" class="color-text-danger"></p>
+                </form>
+                <div x-show="!createCardMode">
                     <label class="form-label" for="import-url-input">图片链接</label>
                     <div class="relative">
                         <input id="import-url-input" type="url" x-model="importUrlInput" class="form-input import-url-input" placeholder="https://example.com/character.png"
@@ -45,7 +61,7 @@
                     <div id="import-category-select" class="icon-select" :class="{ 'is-open': categoryMenuOpen }" @click.outside="categoryMenuOpen = false">
                         <button type="button" class="icon-select-trigger" :aria-expanded="categoryMenuOpen.toString()"
                             aria-haspopup="listbox" aria-controls="import-category-options"
-                            @click="categoryMenuOpen = !categoryMenuOpen"
+                            @click="categoryMenuOpen = !categoryMenuOpen" :disabled="creatingCard"
                             @keydown.arrow-down.prevent="categoryMenuOpen = true"
                             @keydown.escape.stop="categoryMenuOpen = false">
                             <span class="icon-select-trigger-icon" aria-hidden="true">
@@ -53,19 +69,19 @@
                                 <span x-show="importTargetCategory === '根目录'" x-cloak>{{ icon('folder-root', 'ui-icon--sm') }}</span>
                                 <span x-show="importTargetCategory !== '' && importTargetCategory !== '根目录'" x-cloak>{{ sidebar_icon('folder-solid', 'ui-icon--sm') }}</span>
                             </span>
-                            <span class="icon-select-label" x-text="importTargetCategory || '(当前浏览目录)'"></span>
+                            <span class="icon-select-label" x-text="importTargetCategory || (createCardMode ? '根目录' : '(当前浏览目录)')"></span>
                             <span class="icon-select-chevron" aria-hidden="true">{{ icon('chevron-down', 'ui-icon--xs') }}</span>
                         </button>
                         <div id="import-category-options" x-show="categoryMenuOpen" x-cloak class="icon-select-menu"
                             role="listbox" aria-label="保存位置">
-                            <button type="button" role="option" class="icon-select-option"
+                            <button type="button" role="option" class="icon-select-option" x-show="!createCardMode"
                                 :aria-selected="(importTargetCategory === '').toString()"
                                 @click="importTargetCategory = ''; categoryMenuOpen = false">
                                 <span class="icon-select-option-icon" aria-hidden="true">{{ sidebar_icon('folder-open', 'ui-icon--sm') }}</span>
                                 <span class="icon-select-option-label">(当前浏览目录)</span>
                             </button>
                             <button type="button" role="option" class="icon-select-option"
-                                :aria-selected="(importTargetCategory === '根目录').toString()"
+                                :aria-selected="(importTargetCategory === '根目录' || (createCardMode && importTargetCategory === '')).toString()"
                                 @click="importTargetCategory = '根目录'; categoryMenuOpen = false">
                                 <span class="icon-select-option-icon" aria-hidden="true">{{ icon('folder-root', 'ui-icon--sm') }}</span>
                                 <span class="icon-select-option-label">根目录</span>
@@ -82,7 +98,11 @@
                     </div>
                 </div>
 
-                <div class="import-modal-actions">
+                <div x-show="createCardMode" class="import-modal-actions">
+                    <button type="button" @click="closeImportModal()" :disabled="creatingCard" class="btn-secondary">取消</button>
+                    <button type="submit" form="create-card-form" :disabled="creatingCard || !newCardName.trim()" class="btn-primary">创建并编辑</button>
+                </div>
+                <div x-show="!createCardMode" class="import-modal-actions">
                     <button @click="showImportUrlModal=false" class="btn-secondary">取消</button>
                     <button @click="importFromUrl()" :disabled="isLoading" class="btn-primary"
                         >

@@ -14,9 +14,11 @@ import json
 import logging
 import filecmp
 import shutil
+import tempfile
 from typing import Optional, Dict, List, Any, Tuple
 from core.config import load_config, BASE_DIR
 from core.services.st_auth import STAuthError, build_st_http_client
+from core.services.tag_management_service import govern_card_tag_additions
 from core.utils.filesystem import sanitize_filename
 from core.utils.format_validation import (
     is_valid_chat_jsonl_bytes,
@@ -26,7 +28,7 @@ from core.utils.format_validation import (
     is_valid_st_script_data,
     is_valid_world_info_data,
 )
-from core.utils.image import extract_card_info
+from core.utils.image import extract_card_info, write_card_metadata
 from core.utils.regex import extract_regex_from_preset_data, extract_global_regex_from_settings
 
 logger = logging.getLogger(__name__)
@@ -1588,11 +1590,15 @@ class STClient:
                     return False, f"conflict:目标已存在且内容不同，已跳过: {target_path}"
                 shutil.copytree(source_path, target_path)
             else:
-                if os.path.exists(target_path):
-                    if os.path.isfile(target_path) and filecmp.cmp(source_path, target_path, shallow=False):
-                        return True, f"unchanged:{target_path}"
-                    return False, f"conflict:目标已存在且内容不同，已跳过: {target_path}"
-                shutil.copy2(source_path, target_path)
+                info = extract_card_info(source_path) if resource_type == 'characters' else None
+                if info and govern_card_tag_additions(info):
+                    with tempfile.TemporaryDirectory(prefix='stm-card-sync-') as staging_dir:
+                        staged = os.path.join(staging_dir, filename)
+                        shutil.copy2(source_path, staged)
+                        if not write_card_metadata(staged, info, prepare_intent=False):
+                            return False, '无法写入同步角色卡的标签'
+                        return self._copy_sync_file(staged, target_path)
+                return self._copy_sync_file(source_path, target_path)
 
             logger.info(f"同步资源成功: {source_path} -> {target_path}")
             return True, target_path
@@ -1601,6 +1607,16 @@ class STClient:
             logger.error(f"同步资源失败: {e}")
             return False, str(e)
     
+    @staticmethod
+    def _copy_sync_file(source_path, target_path):
+        if os.path.exists(target_path):
+            if os.path.isfile(target_path) and filecmp.cmp(source_path, target_path, shallow=False):
+                return True, f'unchanged:{target_path}'
+            return False, f'conflict:目标已存在且内容不同，已跳过: {target_path}'
+        shutil.copy2(source_path, target_path)
+        logger.info('同步资源成功: %s -> %s', source_path, target_path)
+        return True, target_path
+
     def sync_all_resources(self, resource_type: str, target_dir: str,
                           use_api: bool = False) -> Dict[str, Any]:
         """

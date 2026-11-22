@@ -243,6 +243,7 @@ DEFAULT_CONFIG = {
     # 导入文件时是否使用角色名自动重命名文件
     # 设为 False 则保留原始文件名（仅处理冲突时添加序号）
     "auto_rename_on_import": True,
+    "card_update_image_policy": "overwrite",
     
     # Discord论坛标签抓取配置（类脑论坛使用Discord）
     # 认证方式二选一：Bot Token 或 User Cookie
@@ -371,8 +372,15 @@ def _normalize_flag(value, default=True):
     return default
 
 
+def normalize_card_update_image_policy(value):
+    return value if value in ('overwrite', 'keep_image', 'archive_old', 'archive_new') else 'overwrite'
+
+
 def normalize_config(cfg=None):
     normalized = _normalize_st_credentials({**DEFAULT_CONFIG, **(cfg or {})})
+    normalized['card_update_image_policy'] = normalize_card_update_image_policy(
+        normalized['card_update_image_policy']
+    )
     normalized['st_target'] = _normalize_st_target(normalized.get('st_target'))
     normalized['tt_mode'] = _normalize_tt_mode(normalized.get('tt_mode'))
     normalized['tt_user_handle'] = _normalize_tauri_user_handle(

@@ -377,6 +377,26 @@
   padding-left: 2.65rem !important;
 }
 
+.create-card-covers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.create-card-cover {
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+}
+
+.create-card-cover img {
+  width: 5rem;
+  height: 6.5rem;
+  object-fit: contain;
+  border-radius: 0.4rem;
+}
+
 .import-modal-conflict-note {
   margin: 0;
   color: var(--content-secondary);

@@ -407,7 +407,7 @@ export default function layout() {
         componentLayer('folderOperations', 'showCreateFolder'),
         componentLayer('folderOperations', 'folderRenameModal.visible'),
         componentLayer('folderOperations', 'folderCreateSubModal.visible'),
-        componentLayer('importModal', 'showImportUrlModal'),
+        componentLayer('importModal', 'showImportUrlModal', 'closeImportModal'),
         componentLayer('importModal', 'categoryMenuOpen'),
         componentLayer('moveCardsModal', 'showMoveCardsModal'),
         componentLayer('moveCardsModal', 'categoryMenuOpen'),

@@ -1,4 +1,5 @@
-from core.data.ui_store import get_tag_management_prefs, get_tag_taxonomy
+from core.context import ctx
+from core.data.ui_store import get_tag_management_prefs, get_tag_taxonomy, load_ui_data
 
 
 def _normalize_tags(tags):
@@ -22,7 +23,7 @@ def _normalize_tags(tags):
 
 def build_known_tag_set(ui_data=None, taxonomy=None):
     taxonomy_data = taxonomy if isinstance(taxonomy, dict) else get_tag_taxonomy(ui_data)
-    known_tags = set()
+    known_tags = set(_normalize_tags(getattr(ctx.cache, 'global_tags', None)))
 
     tag_to_category = taxonomy_data.get('tag_to_category')
     if isinstance(tag_to_category, dict):
@@ -74,3 +75,38 @@ def build_governance_feedback(filtered):
         'skipped_unknown': list(payload.get('skipped_unknown') or []),
         'skipped_blacklist': list(payload.get('skipped_blacklist') or []),
     }
+
+
+def card_tag_data(card_info):
+    data = card_info.get('data')
+    return data if isinstance(data, dict) else card_info
+
+
+def card_tag_list(card_info):
+    tags = card_tag_data(card_info).get('tags', card_info.get('tags'))
+    return _normalize_tags(tags.split(',') if isinstance(tags, str) else tags)
+
+
+def govern_card_tag_additions(card_info, *, previous_tags=(), merge=False, ui_data=None):
+    """Filter incoming additions and keep existing tags on overwrite imports."""
+    incoming = card_tag_list(card_info)
+    if not incoming and not merge:
+        return False
+    if ui_data is None:
+        ui_data = load_ui_data()
+    prefs = get_tag_management_prefs(ui_data)
+    if not merge and not (prefs['tag_blacklist'] or prefs['lock_tag_library']):
+        return False
+    previous = set(previous_tags)
+    accepted = set(filter_governed_tags(
+        [tag for tag in incoming if tag not in previous], ui_data=ui_data, prefs=prefs,
+    )['accepted'])
+    retained = [tag for tag in incoming if tag in previous or tag in accepted]
+    result = list(dict.fromkeys([*previous_tags, *retained])) if merge else retained
+    if result == incoming:
+        return False
+    data = card_tag_data(card_info)
+    data['tags'] = result
+    if data is not card_info and 'tags' in card_info:
+        card_info['tags'] = result
+    return True

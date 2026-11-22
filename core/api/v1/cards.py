@@ -1,6 +1,8 @@
 import os
 import json
 import shutil
+import posixpath
+import tempfile
 import uuid
 import random
 import re
@@ -16,7 +18,7 @@ from PIL import Image
 from flask import Blueprint, request, jsonify, send_file, send_from_directory
 
 # === 基础设施 ===
-from core.config import CARDS_FOLDER, DATA_DIR, BASE_DIR, THUMB_FOLDER, TRASH_FOLDER, DEFAULT_DB_PATH, TEMP_DIR, load_config, current_config
+from core.config import CARDS_FOLDER, DATA_DIR, BASE_DIR, THUMB_FOLDER, TRASH_FOLDER, DEFAULT_DB_PATH, TEMP_DIR, load_config, current_config, normalize_card_update_image_policy
 from core.context import ctx
 from core.data.db_session import get_db
 from core.data.ui_store import (
@@ -78,8 +80,13 @@ from core.services.card_service import (
     cleanup_deleted_cards_after_fs_delete,
     cleanup_embedded_worldbook_history,
 )
-from core.services.card_service import sync_exact_card_after_fs_move
-from core.services.tag_management_service import build_governance_feedback, build_known_tag_set, filter_governed_tags
+from core.services.card_service import (
+    create_character_card, retry_created_card_index, sync_exact_card_after_fs_move,
+)
+from core.services.tag_management_service import (
+    build_governance_feedback, build_known_tag_set, filter_governed_tags,
+    card_tag_list, govern_card_tag_additions,
+)
 from core.services.automation_service import (
     auto_run_rules_on_card,
     auto_run_forum_tags_on_link_update,
@@ -121,7 +128,7 @@ from core.services.source_update_monitor_service import (
     update_monitor_settings,
     check_monitored_card,
 )
-from core.services.card_operation_lock import request_card_locks
+from core.services.card_operation_lock import card_file_locks, request_card_locks
 from core.services.gacha_service import draw_cards, normalize_count
 
 # === 工具函数 ===
@@ -436,48 +443,15 @@ def _apply_global_tag_merge_for_card(card_id, tags, ui_data=None, runtime=None):
 
     return merged_tags, merge_info
 
-# === 辅助函数：合并 Tag 逻辑 ===
-def _merge_tags_into_new_info(old_path, new_info):
-    """
-    读取旧文件的 Tags，合并到新文件的元数据对象中。
-    返回合并后的 tags 列表，如果不需合并则返回 None。
-    """
-    try:
-        if not os.path.exists(old_path):
-            return None
-            
-        old_info = extract_card_info(old_path)
-        if not old_info:
-            return None
-            
-        # 提取旧 Tags
-        old_data = old_info.get('data', {}) if 'data' in old_info else old_info
-        old_tags = old_data.get('tags', []) or []
-        if isinstance(old_tags, str): old_tags = old_tags.split(',')
-        
-        # 提取新 Tags
-        new_data = new_info.get('data', {}) if 'data' in new_info else new_info
-        new_tags = new_data.get('tags', []) or []
-        if isinstance(new_tags, str): new_tags = new_tags.split(',')
-        
-        # 合并去重（保留旧顺序，新增项追加到末尾）
-        final_tags = _normalize_tag_list(old_tags)
-        existing = set(final_tags)
-        for tag in _normalize_tag_list(new_tags):
-            if tag not in existing:
-                final_tags.append(tag)
-                existing.add(tag)
-        
-        # 更新新数据对象 (同时兼容 V2/V3 结构)
-        if 'data' in new_info:
-            new_info['data']['tags'] = final_tags
-        else:
-            new_info['tags'] = final_tags
-            
-        return final_tags
-    except Exception as e:
-        logger.error(f"Tag merge failed: {e}")
-        return None
+def _prepare_card_import(path, info, ui_data, existing_path=None):
+    previous = extract_card_info(existing_path) if existing_path else None
+    if existing_path and not previous:
+        raise OSError('无法读取原角色卡的元数据，已取消覆盖导入')
+    if govern_card_tag_additions(
+        info, previous_tags=card_tag_list(previous or {}), merge=bool(previous), ui_data=ui_data,
+    ) and not write_card_metadata(path, info, prepare_intent=False):
+        raise OSError('无法写入导入角色卡的标签')
+
 
 def _is_safe_rel_path(rel_path, allow_empty: bool = False) -> bool:
     """检查是否为安全的相对路径，防止路径遍历"""
@@ -517,34 +491,45 @@ def _is_safe_filename(name: str) -> bool:
     return name == os.path.basename(name)
 
 
-def _remove_conflicting_card_targets(target_path: str) -> None:
+def _opposite_card_target(target_path: str) -> str:
     base_path, ext = os.path.splitext(target_path)
-    ext_lower = ext.lower()
-    candidates = [target_path]
-    if ext_lower == '.png':
-        candidates.append(base_path + '.json')
-    elif ext_lower == '.json':
-        candidates.append(base_path + '.png')
+    sibling_ext = {'.png': '.json', '.json': '.png'}.get(ext.lower())
+    return base_path + sibling_ext if sibling_ext else ''
 
-    for path in candidates:
-        if os.path.exists(path):
-            os.remove(path)
+
+def _commit_card_import(source, target, info, ui_data, *, overwrite, suppress_seconds):
+    sibling = _opposite_card_target(target)
+    with card_file_locks(target, sibling):
+        existing = _resolve_existing_card_target(target) if overwrite else None
+        if not overwrite and any(path and os.path.lexists(path) for path in (target, sibling)):
+            raise FileExistsError('导入目标已存在，请重新选择覆盖或重命名')
+        _prepare_card_import(source, info, ui_data, existing)
+        with tempfile.NamedTemporaryFile(dir=os.path.dirname(target), suffix='.tmp', delete=False) as output:
+            staged = output.name
+        try:
+            shutil.copy2(source, staged)
+            suppress_fs_events(suppress_seconds)
+            prepare_card_path_intents(source, target)
+            os.replace(staged, target)
+        finally:
+            if os.path.exists(staged):
+                os.unlink(staged)
+        if overwrite and sibling and os.path.lexists(sibling):
+            try:
+                os.remove(sibling)
+            except OSError as exc:
+                raise OSError('新角色卡已写入，但无法清理同名旧文件') from exc
+        if os.path.exists(source):
+            os.unlink(source)
+        return existing
 
 
 def _resolve_existing_card_target(target_path: str) -> str:
-    if os.path.exists(target_path):
+    if os.path.lexists(target_path):
         return target_path
 
-    base_path, ext = os.path.splitext(target_path)
-    ext_lower = ext.lower()
-    if ext_lower == '.png':
-        sibling_path = base_path + '.json'
-    elif ext_lower == '.json':
-        sibling_path = base_path + '.png'
-    else:
-        sibling_path = ''
-
-    if sibling_path and os.path.exists(sibling_path):
+    sibling_path = _opposite_card_target(target_path)
+    if sibling_path and os.path.lexists(sibling_path):
         return sibling_path
     return target_path
 
@@ -2777,6 +2762,74 @@ def api_delete_cards():
     except Exception as e:
         return jsonify({"success": False, "msg": str(e)})
 
+@bp.route('/api/cards/create', methods=['POST'])
+def api_create_character_card():
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'success': False, 'msg': '无效的角色卡数据'}), 400
+    category = data.get('category', '')
+    if not isinstance(category, str) or not _is_safe_rel_path(category, allow_empty=True):
+        return jsonify({'success': False, 'msg': '非法目标路径'}), 400
+    try:
+        card = create_character_card(
+            data.get('name'), category.replace('\\', '/').strip('/'),
+            data.get('cover', 'unknown'), cards_root=CARDS_FOLDER,
+        )
+    except ValueError as error:
+        return jsonify({'success': False, 'msg': str(error)}), 400
+    except OSError:
+        logger.exception('创建角色卡失败')
+        return jsonify({'success': False, 'msg': '创建角色卡失败，请检查目录权限'}), 500
+    return jsonify({'success': True, 'new_card': card}), 201
+
+
+@bp.route('/api/cards/index-status')
+def api_card_index_status():
+    card_id = str(request.args.get('card_id') or '').strip()
+    if not card_id or not _is_safe_rel_path(card_id):
+        return jsonify({'success': False, 'msg': '非法角色卡路径'}), 400
+    try:
+        row = get_db().execute(
+            "SELECT status FROM index_jobs WHERE job_type='upsert_card' AND entity_id=? ORDER BY id DESC LIMIT 1",
+            (card_id,),
+        ).fetchone()
+    except sqlite3.Error:
+        logger.exception('读取角色卡索引任务状态失败: %s', card_id)
+        return jsonify({'success': False, 'msg': '读取角色卡索引状态失败'}), 503
+    status = row[0] if row else None
+    return jsonify({
+        'success': True,
+        'status': status,
+        'pending': status in ('pending', 'running', 'failed'),
+    })
+
+
+@bp.route('/api/cards/index-retry', methods=['POST'])
+def api_retry_created_card_index():
+    payload = request.get_json(silent=True)
+    raw_card_id = payload.get('card_id') if isinstance(payload, dict) else None
+    card_id = str(raw_card_id or '')
+    if (not card_id or card_id != card_id.strip() or '\\' in card_id
+            or posixpath.normpath(card_id) != card_id
+            or not _is_safe_rel_path(card_id) or not card_id.lower().endswith('.png')):
+        return jsonify({'success': False, 'msg': '非法角色卡路径'}), 400
+
+    full_path = os.path.realpath(os.path.join(CARDS_FOLDER, card_id.replace('/', os.sep)))
+    if not is_under_base(full_path, CARDS_FOLDER, resolve_symlinks=True):
+        return jsonify({'success': False, 'msg': '非法角色卡路径'}), 400
+    if not os.path.isfile(full_path):
+        return jsonify({'success': False, 'msg': '角色卡文件不存在'}), 404
+
+    result = retry_created_card_index(card_id, full_path)
+    if result['index_sync_retryable']:
+        return jsonify({
+            'success': False,
+            'msg': '索引暂不可用，请稍后重试',
+            **result,
+        }), 503
+    return jsonify({'success': True, **result})
+
+
 @bp.route('/api/import_from_url', methods=['POST'])
 def api_import_from_url():
     temp_path = None
@@ -2948,38 +3001,21 @@ def api_import_from_url():
                     break
                 
             elif resolution == 'overwrite':
-                existing_target_path = _resolve_existing_card_target(target_save_path)
-                overwritten_card_id = os.path.relpath(
-                    existing_target_path,
-                    CARDS_FOLDER,
-                ).replace('\\', '/')
-                overwritten_card_uid = resolve_card_uid(
-                    overwritten_card_id,
-                    cache=ctx.cache,
-                    db_path=DEFAULT_DB_PATH,
-                )
-
-                # 1. 读取旧文件的 Tags 并合并到 info 对象
-                merged_tags = _merge_tags_into_new_info(existing_target_path, info)
-                
-                # 2. 如果有合并发生，将更新后的 info 写入 temp 文件
-                if merged_tags is not None:
-                    write_card_metadata(temp_path, info)
-
-                suppress_fs_events(2.5)
-                # 3. 删除旧文件及其冲突伴生文件 (为 move 做准备)
-                _remove_conflicting_card_targets(target_save_path)
+                pass  # The shared commit helper rechecks the target under the card locks.
 
             else:
                 # 未知 resolution
                 if os.path.exists(temp_path): os.remove(temp_path)
                 return jsonify({"success": False, "msg": f"无效的解决策略: {resolution}"})
         
-        # === 5. 执行保存 (Move) ===
-        if resolution != 'overwrite':
-            suppress_fs_events(2.5)
-        prepare_card_path_intents(temp_path, target_save_path)
-        shutil.move(temp_path, target_save_path)
+        # === 5. 校验标签后再接触目标文件 ===
+        overwritten_path = _commit_card_import(
+            temp_path, target_save_path, info, load_ui_data(),
+            overwrite=conflict and resolution == 'overwrite', suppress_seconds=2.5,
+        )
+        if overwritten_path:
+            overwritten_card_id = os.path.relpath(overwritten_path, CARDS_FOLDER).replace('\\', '/')
+            overwritten_card_uid = resolve_card_uid(overwritten_card_id, cache=ctx.cache, db_path=DEFAULT_DB_PATH)
         
         # 最终文件名
         final_filename = os.path.basename(target_save_path)
@@ -3568,7 +3604,9 @@ def api_update_card_from_url():
         url = data.get('url')
         is_bundle_update = data.get('is_bundle_update', False)
         keep_ui_data = data.get('keep_ui_data', {})
-        image_policy = data.get('image_policy', 'overwrite')
+        image_policy = normalize_card_update_image_policy(
+            data.get('image_policy', load_config().get('card_update_image_policy'))
+        )
         creator_policy = _normalize_creator_policy(data.get('creator_policy'))
         if not url: return jsonify({"success": False, "msg": "URL不能为空"})
         if not _is_safe_rel_path(card_id):
@@ -5241,7 +5279,9 @@ def api_update_card_file():
         keep_ui_data = json.loads(request.form.get('keep_ui_data') or '{}')
         new_card_file = request.files.get('new_card')
         is_bundle_update = request.form.get('is_bundle_update') == 'true'
-        image_policy = request.form.get('image_policy', 'overwrite')
+        image_policy = normalize_card_update_image_policy(
+            request.form.get('image_policy', load_config().get('card_update_image_policy'))
+        )
         creator_policy = _normalize_creator_policy(request.form.get('creator_policy'))
         if not new_card_file: return jsonify({"success": False, "msg": "未提供文件"})
         if not _is_safe_rel_path(card_id):
@@ -6097,10 +6137,13 @@ def api_upload_commit():
 
         success_count = 0
         new_cards = []
+        tag_ui_data = load_ui_data()
 
         for item in decisions:
             filename = item['filename']
             action = item['action'] # overwrite, rename, skip
+            if not _is_safe_filename(filename):
+                continue
             
             src_path = os.path.join(stage_dir, filename)
             if not os.path.exists(src_path): continue
@@ -6151,7 +6194,7 @@ def api_upload_commit():
             if has_conflict or action == 'rename':
                 # 如果是明确的覆盖操作，且文件名没有发生变更(就是用户想覆盖的那个文件)，则允许覆盖
                 if action == 'overwrite' and filename == target_filename and has_conflict:
-                    # 允许覆盖，不做处理，后续逻辑会删除旧文件
+                    # 保留原目标路径，之后原子替换。
                     pass 
                 else:
                     # 否则进入自动重命名逻辑 (Auto Increment)
@@ -6174,28 +6217,9 @@ def api_upload_commit():
                             break
                         counter += 1
             
-            # 执行文件移动 (覆盖模式先删旧)
-            if action == 'overwrite' and filename == target_filename and has_conflict:
-                existing_target_path = _resolve_existing_card_target(dst_path)
-
-                # 解析暂存区文件
-                src_info = extract_card_info(src_path)
-                if src_info:
-                    # 合并 Tags：读取 dst_path 的 tag 并合并到 src_info
-                    merged = _merge_tags_into_new_info(existing_target_path, src_info)
-                    if merged:
-                        # 如果有合并，将新数据写回 src_path
-                        write_card_metadata(src_path, src_info)
-
-                suppress_fs_events(5.0)
-                # 删除目标及其冲突伴生文件，准备覆盖
-                prepare_card_path_intents(src_path, dst_path)
-                _remove_conflicting_card_targets(dst_path)
-
-            if not (action == 'overwrite' and filename == target_filename and has_conflict):
-                suppress_fs_events(5.0)
-            prepare_card_path_intents(src_path, dst_path)
-            shutil.move(src_path, dst_path)
+            overwrite = action == 'overwrite' and filename == target_filename and has_conflict
+            _commit_card_import(src_path, dst_path, info, tag_ui_data,
+                                overwrite=overwrite, suppress_seconds=5.0)
             
             # 更新数据库 & 构建返回对象
             rel_id = f"{category}/{final_filename}" if category else final_filename

@@ -193,6 +193,62 @@ def test_wrong_root_cannot_activate_before_successful_scan(library, monkeypatch,
     assert client.get('/api/list_cards').get_json()['library_total'] == 0
 
 
+def test_created_card_recovers_after_index_enqueue_failure_without_duplicate(library, monkeypatch):
+    from core.services import card_index_sync_service, card_service
+
+    client, db, root = library
+    category = root / 'new'
+    category.mkdir()
+    index_upgrade_service.rebuild_scope_generation('cards')
+    monkeypatch.setattr(card_service, 'CARDS_FOLDER', str(root))
+    monkeypatch.setattr(card_service, 'DEFAULT_DB_PATH', db)
+
+    real_apply = card_service._apply_card_index_increment_now
+    attempts = []
+
+    def fail_create_increment_once(*args, **kwargs):
+        attempts.append(args[0])
+        if len(attempts) == 1:
+            raise sqlite3.OperationalError('database is locked')
+        return real_apply(*args, **kwargs)
+
+    enqueue_attempts = []
+
+    def fail_enqueue(*args, **kwargs):
+        enqueue_attempts.append((args, kwargs))
+        raise sqlite3.OperationalError('database is locked')
+
+    monkeypatch.setattr(card_service, '_apply_card_index_increment_now', fail_create_increment_once)
+    monkeypatch.setattr(card_index_sync_service, 'enqueue_index_job', fail_enqueue)
+
+    created = client.post('/api/cards/create', json={
+        'name': 'Retry Hero', 'category': 'new', 'cover': 'tool',
+    })
+    card = created.get_json()['new_card']
+    card_path = root / card['id']
+
+    assert created.status_code == 201
+    assert card['index_sync_retryable'] is True
+    assert len(enqueue_attempts) == 1
+    assert client.get('/api/list_cards').get_json()['total_count'] == 5
+
+    retried = client.post('/api/cards/index-retry', json={'card_id': card['id']})
+    retry_result = retried.get_json()
+
+    assert retried.status_code == 200
+    assert retry_result == {
+        'success': True,
+        'index_ready': True,
+        'index_sync_pending': False,
+        'index_sync_retryable': False,
+    }
+    assert attempts == [card['id'], card['id']]
+    assert list(category.glob('*.png')) == [card_path]
+    listed = client.get('/api/list_cards').get_json()
+    assert listed['total_count'] == 6
+    assert card['id'] in {item['id'] for item in listed['cards']}
+
+
 def test_build_and_query_on_sqlite_without_fts(request, monkeypatch):
     from core.data import sqlite_capabilities
 

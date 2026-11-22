@@ -1804,7 +1804,7 @@ def test_auto_run_tag_merge_on_tagging_uses_shared_normalizer_for_tag_edit(monke
         captured['card_snapshot'] = card_snapshot
         return normalized_plan
 
-    def _fake_apply_merge_actions_to_tags(tags_arg, merge_actions, slash_as_separator=False):
+    def _fake_apply_merge_actions_to_tags(tags_arg, merge_actions, slash_as_separator=False, **_kwargs):
         captured['merge_tags_input'] = list(tags_arg)
         captured['merge_actions'] = merge_actions
         captured['slash_as_separator'] = slash_as_separator
@@ -1898,7 +1898,7 @@ def test_auto_run_tag_merge_on_tagging_filters_rules_before_evaluation(monkeypat
     monkeypatch.setattr(
         automation_service,
         'apply_merge_actions_to_tags',
-        lambda tags, merge_actions, slash_as_separator=False: {
+        lambda tags, merge_actions, slash_as_separator=False, **_kwargs: {
             'tags': ['new'],
             'changed': True,
             'replacements': ['legacy->new'],
@@ -1971,7 +1971,7 @@ def test_auto_run_tag_merge_on_tagging_keeps_legacy_rules_without_trigger_contex
     monkeypatch.setattr(
         automation_service,
         'apply_merge_actions_to_tags',
-        lambda tags, merge_actions, slash_as_separator=False: {
+        lambda tags, merge_actions, slash_as_separator=False, **_kwargs: {
             'tags': ['new'],
             'changed': True,
             'replacements': ['legacy->new'],
@@ -2311,7 +2311,7 @@ def test_manual_execute_uses_shared_normalizer_for_manual_run_and_preserves_merg
             'final_id': card_id_arg,
         }
 
-    def _fake_apply_merge_actions_to_tags(tags, merge_actions, slash_as_separator=False):
+    def _fake_apply_merge_actions_to_tags(tags, merge_actions, slash_as_separator=False, **_kwargs):
         captured['merge_tags_input'] = list(tags)
         captured['merge_actions'] = list(merge_actions)
         captured['merge_slash_as_separator'] = slash_as_separator
@@ -2590,7 +2590,7 @@ def test_manual_execute_reports_skipped_targets_missing_from_cache(monkeypatch):
     monkeypatch.setattr(
         automation_api,
         'apply_merge_actions_to_tags',
-        lambda current_tags, merge_actions, slash_as_separator=False: {
+        lambda current_tags, merge_actions, slash_as_separator=False, **_kwargs: {
             'changed': True,
             'tags': ['modern'],
         },
