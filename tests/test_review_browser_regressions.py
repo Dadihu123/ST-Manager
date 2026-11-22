@@ -55,6 +55,68 @@ def test_async_sentinel_cleanup_does_not_close_new_layer(page):
     assert page.evaluate('testState.closed') == ['a', 'b']
 
 
+def test_card_hover_keeps_visible_overhang_but_cannot_restart_from_gap(page):
+    from flask import Flask, render_template
+
+    app = Flask(__name__, template_folder=str(ROOT / 'templates'))
+    with app.test_request_context():
+        template = render_template('components/grid_cards.html')
+    page.set_content(template)
+    for path in ('/static/lib/cards-css/holo-cards.css', '/static/css/style.css', '/static/css/tailwind.css'):
+        page.add_style_tag(url=path)
+    # Fix only the horizontal overhang so the trajectory doesn't depend on GPU or spring frame rate.
+    page.add_style_tag(content="""
+      .card-grid { width: 500px; margin: 40px; }
+      .card-grid .holo-card--interactive .holo-card__translater { --translate-x: var(--overhang, 12px); }
+    """)
+    page.evaluate("""async () => {
+      const makeGrid = (await import('/static/js/components/cardGrid.js')).default;
+      const grid = document.querySelector('.card-grid');
+      const tile = grid.querySelector('template[x-for="card in visibleCards"]').content.firstElementChild;
+      grid.replaceChildren(); document.body.replaceChildren(grid);
+      window.component = makeGrid();
+      component.$el = grid; component.$store = {global: {deviceType: 'desktop'}};
+      component.cards = [{id: 1}, {id: 2}];
+      for (const card of component.cards) {
+        const el = tile.cloneNode(true); el.dataset.cardId = card.id;
+        grid.append(el); component.syncCardEffect(el, card);
+      }
+      component.initCardEffectInteractions();
+      window.tileA = grid.firstElementChild;
+      window.shellA = tileA.querySelector('.card-effect-shell');
+      window.hit = (x,y) => document.elementFromPoint(x,y);
+    }""")
+    rect = page.locator('[data-card-id="1"]').bounding_box()
+    right = rect['x'] + rect['width']
+    y = rect['y'] + rect['height'] / 2
+    page.mouse.move(right - rect['width'] / 2, y)
+    page.wait_for_function('component._cardEffectActiveShell === shellA')
+    assert page.locator('[data-card-id="1"]').bounding_box() == rect
+    page.mouse.move(right + 5, y)
+    assert page.evaluate('([x,y]) => tileA.contains(hit(x,y)) && component._cardEffectActiveShell === shellA',
+                         [right + 5, y])
+
+    # The returning image crosses the stationary mouse before the release animation finishes.
+    gap = [right + 19, y]
+    page.mouse.move(*gap)
+    page.wait_for_function('component._cardEffectReleaseShell === shellA')
+    page.evaluate("shellA.style.setProperty('--overhang', '24px')")
+    assert page.evaluate("""([x,y]) => shellA.querySelector('.card-image-media').getBoundingClientRect().right > x
+      && hit(x,y) === component.$el && !tileA.matches(':hover')""", gap)
+    page.wait_for_function('!shellA.classList.contains("holo-card--interactive")')
+    assert page.evaluate('component._cardEffectActiveShell === null')
+
+    # Re-entry through the normal slot still works; moving across the gutter selects the neighbour.
+    page.mouse.move(right - 2, y)
+    page.wait_for_function('component._cardEffectActiveShell === shellA')
+    page.mouse.move(right + 40, y)
+    page.wait_for_function('component._cardEffectActiveShell?.closest(".st-card").dataset.cardId === "2"')
+    button = page.locator('[data-card-id="2"] .card-fav-btn')
+    button.evaluate("el => el.addEventListener('click', () => {window.favClicked = true})")
+    button.click()
+    assert page.evaluate('window.favClicked === true')
+
+
 def test_native_back_does_not_create_history_entries(page):
     assert page.evaluate("""async () => {
       window.stmHost = {};
