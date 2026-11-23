@@ -342,6 +342,7 @@ mypy core
      unsaved-change confirmation run. Named local Alpine scopes use `data-back-scope` for the same table.
   - Debugging: `window.__stmViewStack()` reports `{registered: [{key, active, error}], depth, installed, hasActiveLayer}`, which distinguishes "layer never registered" from "`isActive` always false" from "DOM observer not installed".
 - Touch long-press: only business targets marked `[data-long-press-menu]` in `static/js/utils/longPress.js` **take over** the native `contextmenu` (`preventDefault` + re-dispatch at the recorded finger coordinates) while inputs, editable content and ordinary text keep native behavior. Android WebView fires its own `contextmenu` at ~500 ms with system coordinates; yielding means no menu ever appears.
+- Edit-state field drafts (`static/js/utils/fieldDraft.js`) must keep their tracking Proxy **single-layered and only over raw objects**: unwrap Alpine reactive proxies (`Alpine.raw`) on both read and write inputs, and allow exactly one tracking Proxy per raw object. Letting the draft Proxy and Alpine's reactive Proxy wrap each other makes the proxy chain grow on every read — the detail modal then dies in `RangeError: Maximum call stack size exceeded` behind one multi-second long task (the 1.3.0 detail-open freeze). Regression guard: `tests/field_draft_proxy_layering_test.mjs`.
 
 ## Build And Packaging
 

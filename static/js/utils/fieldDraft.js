@@ -7,43 +7,101 @@ const fields = new Set([...CARD_UI_FIELDS, ...CARD_FILE_FIELDS]);
 const clone = value => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
 const signature = value => value && typeof value === 'object' ? JSON.stringify(value) : value;
 
+// 草稿追踪代理必须保持「一层、且只包原始对象」。
+//
+// 编辑数据同时活在两个 Proxy 体系里：Alpine 的响应式代理负责渲染，这里的
+// 追踪代理负责字段边界。两边若互相包裹，每次读取都会再套一层，代理链随
+// 交互无限加深——详情页打开时就是在这个链条上走到 V8 爆栈（RangeError:
+// Maximum call stack size exceeded），主线程被一条几十秒的长任务占死。
+//
+// 因此这里守三条：
+// 1. trackers 以原始对象为键，同一对象永远只有一个追踪代理；
+// 2. 入参是代理（Alpine 响应式或别的追踪代理）时先解包到原始对象；
+// 3. 写入时也解包，代理不会作为「数据值」被存进编辑数据。
+// 任何一条被破坏，层数就会重新开始累积。
+const trackers = new WeakMap();   // 原始对象 -> { proxy, root }
+const sources = new WeakMap();    // 追踪代理 -> 原始对象
+const owners = new WeakMap();     // 原始对象 -> 当前生效的草稿上下文
+
+const unwrap = value => {
+    let current = value;
+    for (let i = 0; i < 8; i += 1) {
+        if (!current || typeof current !== 'object') return current;
+        if (sources.has(current)) { current = sources.get(current); continue; }
+        if (typeof Alpine !== 'undefined' && typeof Alpine.raw === 'function') {
+            const raw = Alpine.raw(current);
+            if (raw !== current) { current = raw; continue; }
+        }
+        return current;
+    }
+    return current;
+};
+
+const fieldOf = (root, key) => root || (typeof key === 'string' && key ? key : null);
+
+const markTouched = (raw, root) => {
+    if (!raw || !root || !fields.has(root)) return;
+    const ctx = owners.get(raw);
+    if (!ctx || ctx.muted()) return;
+    ctx.mark(root);
+};
+
+const wrap = (value, root, ctx) => {
+    if (!value || typeof value !== 'object') return value;
+    const target = unwrap(value);
+    if (!target || typeof target !== 'object') return target;
+    if (ctx) owners.set(target, ctx);
+
+    const existing = trackers.get(target);
+    if (existing) {
+        if (root && !existing.root) existing.root = root;
+        return existing.proxy;
+    }
+
+    const entry = { proxy: null, root: root || null };
+    entry.proxy = new Proxy(target, {
+        get(object, key) {
+            const own = trackers.get(object);
+            const childRoot = fieldOf(own && own.root, key);
+            return wrap(Reflect.get(object, key), childRoot, owners.get(object));
+        },
+        set(object, key, nextValue) {
+            const next = unwrap(nextValue);
+            if (Reflect.get(object, key) === next) return true;
+            const own = trackers.get(object);
+            Reflect.set(object, key, next);
+            markTouched(object, fieldOf(own && own.root, key));
+            return true;
+        },
+        deleteProperty(object, key) {
+            const own = trackers.get(object);
+            const removed = Reflect.deleteProperty(object, key);
+            markTouched(object, fieldOf(own && own.root, key));
+            return removed;
+        },
+    });
+    trackers.set(target, entry);
+    sources.set(entry.proxy, target);
+    return entry.proxy;
+};
+
 export function createFieldDraft(source, notify = () => {}) {
     const baseline = {};
     const versions = {};
     const pending = new Set();
     const dirty = new Set();
-    const proxies = new WeakMap();
     let muted = false;
-    const touch = field => {
-        if (muted || !fields.has(field)) return;
-        versions[field] = (versions[field] || 0) + 1;
-        pending.add(field);
-        notify();
+    const ctx = {
+        versions,
+        muted: () => muted,
+        mark: field => {
+            versions[field] = (versions[field] || 0) + 1;
+            pending.add(field);
+            notify();
+        },
     };
-    const wrap = (object, root) => {
-        if (!object || typeof object !== 'object') return object;
-        if (proxies.has(object)) return proxies.get(object);
-        const proxy = new Proxy(object, {
-            get(target, key, receiver) {
-                return wrap(Reflect.get(target, key, receiver), root || key);
-            },
-            set(target, key, value) {
-                if (target[key] === value) return true;
-                Reflect.set(target, key, value);
-                touch(root || key);
-                return true;
-            },
-            deleteProperty(target, key) {
-                Reflect.deleteProperty(target, key);
-                touch(root || key);
-                return true;
-            },
-        });
-        proxies.set(object, proxy);
-        return proxy;
-    };
-    const data = wrap(source);
-    for (const field of fields) baseline[field] = clone(source[field]);
+    const data = wrap(source, null, ctx);
+    for (const field of fields) baseline[field] = clone(data[field]);
     const draft = {
         data, versions,
         dirtyFields() {

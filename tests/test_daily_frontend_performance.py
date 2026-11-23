@@ -11,6 +11,14 @@ def test_chat_management_request_ordering():
     assert result.returncode == 0, result.stdout + result.stderr
 
 
+def test_field_draft_keeps_a_single_proxy_layer():
+    """草稿追踪代理与 Alpine 响应式代理不能再互相包裹（详情页打开卡死回归）。"""
+    result = subprocess.run(['node', 'tests/field_draft_proxy_layering_test.mjs'],
+                            cwd=Path(__file__).resolve().parents[1],
+                            capture_output=True, text=True, timeout=60)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
 SETUP = """
 const assert = (value, message) => { if (!value) throw new Error(message); };
 modal.$store = { global: { showToast() {}, setTagTaxonomy() {} } };
