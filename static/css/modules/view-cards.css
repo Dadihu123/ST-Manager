@@ -2183,6 +2183,27 @@ html.light-mode .card-bottom-toolbar
   --card-effect-border-width: 2px;
 }
 
+/* 卡位留在网格原处，只让内层卡面上浮。已经悬浮时，伸进间隙的卡面仍可命中；
+ * 离开后，回弹中的子元素不能从间隙重新触发 :hover，必须先进入固定卡位。 */
+@media (hover: hover) and (pointer: fine) {
+  .card-grid .st-card.card-effect-host:hover {
+    transform: none;
+  }
+
+  .card-grid .st-card > .holo-card--interactive {
+    transition: translate 0.24s ease;
+  }
+
+  .card-grid .st-card:hover > .holo-card--interactive {
+    translate: 0 -4px;
+  }
+
+  .card-grid .st-card:not(:hover) > .holo-card--interactive,
+  .card-grid .st-card:not(:hover) > .holo-card--interactive * {
+    pointer-events: none !important;
+  }
+}
+
 .card-effect-shell .holo-card__translater,
 .card-effect-shell .holo-card__rotator,
 .card-effect-shell .holo-card__front {
@@ -2282,6 +2303,8 @@ html.light-mode .card-bottom-toolbar
 .card-grid .card-effect-shell.holo-card:not(.holo-card--interactive) .holo-card__rotator {
   transform: none;
   transform-style: flat;
+  /* 实例已经完成回弹；不要让库的 CSS 过渡再把命中面留在间隙中。 */
+  transition: none;
 }
 
 /* 静止卡片的微光/眩光本来就是全透明的（`--card-opacity` 默认 0），
@@ -2702,6 +2725,10 @@ html.light-mode .card-effect-shell .card-toolbar-layout-spacer {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .card-grid .st-card:hover > .holo-card--interactive {
+    translate: none;
+  }
+
   .card-effect-shell .holo-card__translater,
   .card-effect-shell .holo-card__rotator,
   .card-effect-shell .holo-card__shine,
