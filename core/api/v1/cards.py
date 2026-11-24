@@ -29,6 +29,7 @@ from core.data.ui_store import (
     UiDataLoadError,
     get_version_remark,
     set_version_remark,
+    VERSION_REMARKS_KEY,
     get_import_time,
     get_last_sent_to_st,
     get_last_sent_to_tt,
@@ -1734,6 +1735,9 @@ def api_update_card():
         is_renamed = False
         if os.path.abspath(old_full_path).lower() != os.path.abspath(new_full_path).lower():
             is_renamed = True
+        if is_renamed and os.path.exists(new_full_path):
+            # 发生重名时，正文和备注也必须保持原样。
+            return jsonify({"success": False, "msg": f"目标文件名已存在: {new_filename}"})
 
         if ui_only and not force_set_cover and not is_renamed:
             target_id = (data.get('version_id') or raw_id) if data.get('save_ui_to_bundle') else raw_id
@@ -1924,7 +1928,27 @@ def api_update_card():
 
         if data.get('save_ui_to_bundle') and data.get('bundle_dir'):
             ui_key = data.get('bundle_dir')
-            target_version_id = data.get('version_id', final_rel_path_id)
+            if is_renamed:
+                # 文件移动后，版本备注和编辑器使用新路径；聚合包主键仍由封面决定。
+                entry = ui_data.get(ui_key, {})
+                old_cover_id = ctx.cache.bundle_map.get(ui_key)
+                if 'summary' in entry and not old_cover_id:
+                    cover_row = get_db().execute(
+                        'SELECT id FROM card_metadata WHERE category = ? ORDER BY last_modified DESC, id LIMIT 1',
+                        (ui_key,),
+                    ).fetchone()
+                    old_cover_id = cover_row[0] if cover_row else None
+                if 'summary' in entry and old_cover_id:
+                    # 升级旧格式时，根备注属于重排之前的封面。
+                    entry.setdefault(VERSION_REMARKS_KEY, {}).setdefault(old_cover_id, {'summary': entry['summary']})
+                    del entry['summary']
+                    ui_changed = True
+                remarks = entry.get(VERSION_REMARKS_KEY, {})
+                if raw_id in remarks:
+                    remarks[final_rel_path_id] = remarks.pop(raw_id)
+                    ui_changed = True
+            else:
+                target_version_id = data.get('version_id') or final_rel_path_id
         else:
             ui_key = final_rel_path_id
             if raw_id != final_rel_path_id and rename_card_ui_references(
@@ -1992,6 +2016,8 @@ def api_update_card():
                         if bundle_card.get('versions'):
                             cover_id = bundle_card['versions'][0]['id']
 
+                if is_renamed and 'ui_summary' not in data:
+                    remark_data['summary'] = get_version_remark(ui_data, ui_key, target_version_id).get('summary', '')
                 if set_version_remark(ui_data, ui_key, target_version_id, remark_data, cover_id):
                     ui_changed = True
             else:
@@ -2306,6 +2332,9 @@ def api_update_card():
 
                 with ctx.cache.lock:
                     # 全局缓存映射
+                    previous_leader = ctx.cache.bundle_map.get(bundle_dir)
+                    if previous_leader and previous_leader != bundle_card['id']:
+                        ctx.cache.id_map.pop(previous_leader, None)
                     ctx.cache.bundle_map[bundle_dir] = bundle_card['id']
                     ctx.cache.id_map[bundle_card['id']] = bundle_card
                     

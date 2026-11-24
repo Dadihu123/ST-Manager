@@ -63,7 +63,10 @@ export default function detailModal() {
     const autoSaver = createAutoSaver();
     let fieldDraft = null;
     let baselineJson = null;
-    let saveSequence = 0;
+    let switchSequence = 0;
+    let refreshSequence = 0;
+    let refreshInFlight = false;
+    let pendingSave = null;
     let chatRequest = null;
     let chatGeneration = 0;
     let loadedChatKey = null;
@@ -81,6 +84,7 @@ export default function detailModal() {
         showTagLibrary: true,
         tagLibrarySearch: '',
         tab: 'basic', 
+        hasOpenedWorldbook: false,
         lastTab: 'basic',
         mobilePanel: 'content',
         mobileNavOpen: false,
@@ -150,8 +154,6 @@ export default function detailModal() {
         editingRevision: '',
         // 最近一次「由其他组件持久化」的字段值，避免陈旧响应把它们覆盖回去。
         lastPersistedResourceFolder: '',
-        // 409 冲突是否已经自动重试过一次（避免无限覆盖）。
-        _saveConflictRetried: false,
         isCardFlipped: false,
         zoomLevel: 100,
         altIdx: 0,
@@ -208,7 +210,7 @@ export default function detailModal() {
         },
         set originalDataJson(value) {
             baselineJson = value;
-            if (!value) { fieldDraft = null; return; }
+            if (!value) { fieldDraft = null; this.dirtyEpoch += 1; return; }
             const baseline = JSON.parse(value);
             fieldDraft = createFieldDraft(this.editingData, () => { this.dirtyEpoch += 1; });
             this.editingData = fieldDraft.data;
@@ -507,26 +509,26 @@ export default function detailModal() {
                 && this.activeCard.bundle_dir
                 && detail.bundle_dir === this.activeCard.bundle_dir
             );
-            if (!incomingId && !isBundleMatch) return false;
-            if (incomingId && currentId && incomingId !== currentId && !isBundleMatch) return false;
+            const sameFile = Boolean(incomingId && incomingId === currentId);
+            if (!sameFile && !isBundleMatch) return false;
 
             let absorbed = false;
             const incomingRevision = String(detail.source_revision || '').trim();
-            if (this._isRevisionNewer(incomingRevision, this.editingRevision)) {
+            if (sameFile && this._isRevisionNewer(incomingRevision, this.editingRevision)) {
                 this.editingRevision = incomingRevision;
                 this.editingData.source_revision = incomingRevision;
                 this.activeCard.source_revision = incomingRevision;
                 this._syncPersistedBaseline(['source_revision']);
                 absorbed = true;
             }
-            if (detail.filename && detail.filename !== this.editingData.filename
+            if (sameFile && detail.filename && detail.filename !== this.editingData.filename
                 && !fieldDraft?.dirtyFields().includes('filename')) {
                 this.editingData.filename = detail.filename;
                 this.activeCard.filename = detail.filename;
                 this._syncPersistedBaseline(['filename']);
                 absorbed = true;
             }
-            if (detail.image_url) {
+            if (sameFile && detail.image_url) {
                 this.activeCard.image_url = detail.image_url;
                 absorbed = true;
             }
@@ -639,6 +641,11 @@ export default function detailModal() {
         get hasUnsavedChanges() {
             void this.dirtyEpoch;
             return Boolean(fieldDraft?.dirtyFields().length);
+        },
+
+        get hasDetailDraft() {
+            void this.dirtyEpoch;
+            return Boolean(fieldDraft);
         },
 
         get hasAlternateGreetings() {
@@ -1233,6 +1240,7 @@ export default function detailModal() {
             if (tabName === 'dialog') this.syncDialogState();
 
             this.tab = tabName;
+            if (tabName === 'wi') this.hasOpenedWorldbook = true;
             if (tabName === 'chats') this.fetchCardChats(this.activeCard.id);
             this.mobileNavOpen = false;
 
@@ -1663,10 +1671,8 @@ export default function detailModal() {
                 const cardIds = Array.isArray(event?.detail?.cardIds)
                     ? event.detail.cardIds
                     : [];
-                const activeIds = [this.activeCard.id, this.editingData?.id]
-                    .filter(Boolean);
-                const changedId = activeIds.find(id => cardIds.includes(id));
-                if (changedId) {
+                const changedId = this.editingData?.id || this.activeCard.id;
+                if (cardIds.includes(changedId)) {
                     this.refreshActiveCardDetail(changedId);
                 }
             });
@@ -1715,7 +1721,6 @@ export default function detailModal() {
                     this.greetingListSearch = '';
                     this.editingRevision = '';
                     this.lastPersistedResourceFolder = '';
-                    this._saveConflictRetried = false;
                 }
             });
 
@@ -2364,15 +2369,17 @@ export default function detailModal() {
             this.retryUpdateFile = null;
             this.stopAutoSave();
             this.isSaving = false;
-            saveSequence += 1;
+            pendingSave = null;
+            refreshInFlight = false;
             this._cleanupPendingAdvancedEditorHandlers();
             this.endBasicSplitResize();
             this.basicColumnSplit = BASIC_SPLIT_DEFAULT;
             this.detailRequestToken += 1;
             this.originalDataJson = null;
+            this.hasOpenedWorldbook = false;
             this.detailLoading = true;
             this.detailLoadError = '';
-            this.activeCard = c;
+            this.activeCard = { ...c };
             this.indexSyncWatchToken += 1;
             this.indexSyncRetryable = c?.index_sync_retryable === true;
             this.indexSyncRetryPending = false;
@@ -2544,26 +2551,45 @@ export default function detailModal() {
 
         // 刷新当前卡片数据 (从后端)
         refreshActiveCardDetail(cardId, { preserveDraft = true } = {}) {
-            const requestToken = ++this.detailRequestToken;
+            if (pendingSave && cardId === this.editingData.id) {
+                const saving = pendingSave;
+                saving.needsRefresh = true;
+                return saving.promise.then(() => saving.refreshed);
+            }
+            if (this.isSaving) return;
+            return this._readActiveCardDetail(cardId, { preserveDraft });
+        },
+
+        _readActiveCardDetail(cardId, { preserveDraft }) {
+            const editorToken = this.detailRequestToken;
+            const requestToken = ++refreshSequence;
+            const current = () => requestToken === refreshSequence && editorToken === this.detailRequestToken && this.showDetail;
             const requestedVersions = { ...fieldDraft?.versions };
             // 记录本次请求发出前本地已持久化的资源目录/修订号，用于识别乱序响应。
-            const requestedResourceFolder = String(
+            const requestedResourceFolder = preserveDraft && String(
                 this.editingData?.resource_folder || this.activeCard?.resource_folder || ''
             ).trim();
-            const requestedRevision = String(this.editingRevision || '').trim();
+            const requestedRevision = preserveDraft && String(this.editingRevision || '').trim();
             if (!cardId) {
                 this.detailLoading = false;
                 this.detailLoadError = '缺少角色卡标识，无法载入最新详情';
                 return;
             }
 
+            this.detailLoading = !fieldDraft;
             this.detailLoadError = '';
-            
+            refreshInFlight = true;
+
             return getCardDetail(cardId).then(res => {
-                if (requestToken !== this.detailRequestToken || !this.showDetail) return;
-                if (res.success && res.card) {
-                    const retainedDraft = fieldDraft?.capture(fieldDraft.dirtyFields().filter(field =>
-                        preserveDraft || (fieldDraft.versions[field] || 0) !== (requestedVersions[field] || 0)));
+                if (!current()) return;
+                if (res?.success && res.card) {
+                    // 用户在等待期间可能清空字段，或把它改回旧基线。即使它现在不脏，
+                    // 这次输入仍应保留，并与即将装入的新磁盘值比较。
+                    const retainedFields = new Set(preserveDraft ? fieldDraft?.dirtyFields() : []);
+                    for (const [field, version] of Object.entries(fieldDraft?.versions || {})) {
+                        if (version !== (requestedVersions[field] || 0)) retainedFields.add(field);
+                    }
+                    const retainedDraft = fieldDraft?.capture([...retainedFields]);
                     let safeCard = res.card;
                     
                     // 再次解包防止嵌套
@@ -2645,6 +2671,7 @@ export default function detailModal() {
                     this.editingData.source_update = safeCard.source_update ?? null;
                     if (!staleResourceFolder) {
                         this.editingData.resource_folder = incomingResourceFolder;
+                        if (!preserveDraft) this.lastPersistedResourceFolder = incomingResourceFolder;
                     }
                     if (!staleRevision || !this.editingRevision) {
                         this.editingData.source_revision = incomingRevision;
@@ -2676,24 +2703,22 @@ export default function detailModal() {
                         this.tab = 'persona';
                     }
 
-                    // 启动自动保存
-                    this.$nextTick(() => {
-                        // 1. 记录当前状态为"原始基准"
-                        this._resetDraftBaseline();
-                        if (retainedDraft) Object.assign(this.editingData, retainedDraft.values);
-                        // 2. 启动计时器
-                        this.startAutoSave();
-                    });
+                    // 在本次响应内建立基线；不要把可编辑窗口留给下一帧或另一张卡。
+                    this._resetDraftBaseline();
+                    if (retainedDraft) Object.assign(this.editingData, retainedDraft.values);
+                    this.startAutoSave();
+                    return true;
                 }
+                throw new Error(res?.msg || '角色卡详情载入失败');
             }).catch(error => {
-                if (requestToken !== this.detailRequestToken) return;
-                this.detailLoading = false;
+                if (!current()) return;
                 this.detailLoadError = error?.message || '角色卡详情载入失败';
                 if (this.showDetail) {
                     this.$store?.global?.showToast?.(this.detailLoadError, 3200, 'close');
                 }
             }).finally(() => {
-                if (requestToken === this.detailRequestToken && this.showDetail && (this.activeCard?.id === cardId || this.editingData?.id === cardId)) {
+                if (requestToken === refreshSequence) refreshInFlight = false;
+                if (current()) {
                     this.detailLoading = false;
                 }
             });
@@ -2702,22 +2727,43 @@ export default function detailModal() {
         // === 保存逻辑 ===
 
         saveChanges() {
-            if (this.isSaving) return Promise.resolve(false);
-            return this._internalSaveCard(false);
+            if (!this.showDetail || this.isSaving || !fieldDraft) return Promise.resolve(false);
+            const dirtyFields = fieldDraft.dirtyFields();
+            if (!dirtyFields.length) return Promise.resolve(true);
+
+            // 一次保存包含可能的 409 重试；期间收到的刷新共用最后一次磁盘读取。
+            const editorToken = this.detailRequestToken;
+            const draft = fieldDraft;
+            const pending = { cardId: this.editingData.id, needsRefresh: refreshInFlight, retried: false };
+            pending.current = () => pendingSave === pending && this.showDetail && editorToken === this.detailRequestToken
+                && fieldDraft === draft && this.editingData.id === pending.cardId;
+            pendingSave = pending;
+            refreshInFlight = false;
+            refreshSequence += 1;
+            switchSequence += 1;
+            this.isSaving = true;
+            pending.promise = this._internalSaveCard(pending, dirtyFields).catch(error => {
+                if (pending.current()) alert("请求错误: " + error);
+                return false;
+            }).finally(() => {
+                if (pendingSave !== pending) return;
+                const refresh = pending.current() && pending.needsRefresh && !pending.refreshed;
+                pendingSave = null;
+                this.isSaving = false;
+                if (refresh) pending.refreshed = this.refreshActiveCardDetail(pending.cardId);
+            });
+            return pending.promise;
         },
 
-        _internalSaveCard(isBundleRenamed) {
-            const dirtyFields = fieldDraft?.dirtyFields() || [];
+        async _internalSaveCard(pending, dirtyFields = fieldDraft.dirtyFields()) {
             const bodyChanged = dirtyFields.some(field => CARD_FILE_FIELDS.includes(field));
             const uiFields = dirtyFields.filter(field => CARD_UI_FIELDS.includes(field));
-            if (!bodyChanged && !uiFields.length) return Promise.resolve(true);
+            if (!bodyChanged && !uiFields.length) return true;
             const submittedFields = bodyChanged ? [...CARD_FILE_FIELDS, ...uiFields] : uiFields;
             const draft = fieldDraft;
             const snapshot = draft.capture(submittedFields);
             const rawBookAtSubmission = this.editingData.character_book_raw;
             const cardId = this.editingData.id;
-            const sequence = ++saveSequence;
-            const detailToken = this.detailRequestToken;
             const payload = {
                 id: cardId,
                 source_revision: this.editingData.source_revision || "",
@@ -2739,80 +2785,77 @@ export default function detailModal() {
             if (uiFields.includes('resource_folder') && !snapshot.values.resource_folder) {
                 payload.clear_ui_fields = ['resource_folder'];
             }
-            this.isSaving = true;
-            return updateCard(payload).then(async res => {
-                if (sequence !== saveSequence || detailToken !== this.detailRequestToken
-                    || this.editingData.id !== cardId || fieldDraft !== draft) return false;
-                this.isSaving = false;
-                if (!res.success) return this.handleSaveConflict(res);
-                // updated_card may describe the bundle leader while this editor shows
-                // a sibling. Only absorb body fields belonging to the edited version.
-                const updated = res.updated_card;
-                const canonicalId = res.canonical_ui?.id || res.new_id || cardId;
-                const sameVersion = (res.canonical_fields_id || updated?.id) === canonicalId;
-                // A cached card is a list projection, so only fields explicitly
-                // returned after synchronous actions can rebase an unsent body field.
-                let canonicalBody = sameVersion ? (res.canonical_fields || {}) : {};
-                if (sameVersion && res.canonical_body) {
-                    const normalized = this._normalizeEditingDataShape(canonicalBody);
-                    canonicalBody = Object.fromEntries(CARD_FILE_FIELDS.map(field => [field, normalized[field]]));
-                }
-                const canonical = { ...canonicalBody, ...(res.canonical_ui || (sameVersion ? updated : {})) };
-                const acceptedFields = [...new Set([...submittedFields,
-                    ...Object.keys(canonical).filter(field => CARD_FILE_FIELDS.includes(field)
-                        || CARD_UI_FIELDS.includes(field))])];
-                draft.accept(snapshot, canonical);
-                if (res.canonical_body && sameVersion
-                    && (draft.versions.character_book || 0) === (snapshot.versions.character_book || 0)
-                    && this.editingData.character_book_raw === rawBookAtSubmission) {
-                    this.editingData.character_book_raw = '';
-                    canonical.character_book_raw = '';
-                    acceptedFields.push('character_book_raw');
-                }
+            const res = await updateCard(payload);
+            if (!pending.current()) return false;
+            if (!res.success) return this.handleSaveConflict(res, pending);
+            // updated_card may describe the bundle leader while this editor shows
+            // a sibling. Only absorb body fields belonging to the edited version.
+            const updated = res.updated_card;
+            const canonicalId = res.canonical_ui?.id || res.current_version_id
+                || (this.activeCard.is_bundle ? cardId : res.new_id || cardId);
+            const sameVersion = (res.canonical_fields_id || updated?.id) === canonicalId;
+            // A cached card is a list projection, so only fields explicitly
+            // returned after synchronous actions can rebase an unsent body field.
+            let canonicalBody = sameVersion ? (res.canonical_fields || {}) : {};
+            if (sameVersion && res.canonical_body) {
+                const normalized = this._normalizeEditingDataShape(canonicalBody);
+                canonicalBody = Object.fromEntries(CARD_FILE_FIELDS.map(field => [field, normalized[field]]));
+            }
+            const canonical = { ...canonicalBody, ...(res.canonical_ui || (updated?.id === canonicalId ? updated : {})) };
+            const acceptedFields = [...new Set([...submittedFields,
+                ...Object.keys(canonical).filter(field => CARD_FILE_FIELDS.includes(field)
+                    || CARD_UI_FIELDS.includes(field))])];
+            draft.accept(snapshot, canonical);
+            if (res.canonical_body && sameVersion
+                && (draft.versions.character_book || 0) === (snapshot.versions.character_book || 0)
+                && this.editingData.character_book_raw === rawBookAtSubmission) {
+                this.editingData.character_book_raw = '';
+                canonical.character_book_raw = '';
+                acceptedFields.push('character_book_raw');
+            }
+            // Bundle saves may publish the leader for the grid even when we edited another file.
+            if (updated?.id === canonicalId) {
                 this.editingData.source_revision = res.updated_card?.source_revision || this.editingData.source_revision || "";
-                if (canonical.source_revision) this.editingData.source_revision = canonical.source_revision;
-                this.editingRevision = this.editingData.source_revision;
-                if (canonical.resource_folder !== undefined) {
-                    this.lastPersistedResourceFolder = String(canonical.resource_folder || '').trim();
-                }
-                if (!this.activeCard.is_bundle && res.new_id) {
-                    this.activeCard.id = res.new_id;
-                    this.editingData.id = res.new_id;
-                    this.activeCard.filename = res.new_filename;
-                    // A later filename edit must survive the response as well.
-                    if (!draft.dirtyFields().includes('filename')) this.editingData.filename = res.new_filename;
-                }
-                if (res.updated_card) {
-                    window.dispatchEvent(new CustomEvent('card-updated', { detail: res.updated_card }));
-                    if (!this.activeCard.is_bundle) Object.assign(this.activeCard, res.updated_card);
-                    else if (res.new_id) this.activeCard.id = res.new_id;
-                }
-                if (typeof autoSaver.rebaseBaseline === 'function') {
-                    autoSaver.rebaseBaseline(this.editingData, [...acceptedFields, 'source_revision', 'id'], {
-                        ...snapshot.values, ...canonical, id: this.editingData.id,
-                        source_revision: this.editingData.source_revision,
-                    });
-                } else autoSaver.initBaseline(this.editingData);
-                this.$store.global.showToast("保存成功", 2000, "settings-save");
-                // Full refresh is only needed for canonical body/structural changes, and must
-                // never replace a draft typed while the request was in flight.
-                if (bodyChanged && !draft.dirtyFields().length) {
-                    this.refreshActiveCardDetail(res.current_version_id || this.editingData.id);
-                }
-                return true;
-            }).catch(error => {
-                if (sequence === saveSequence && detailToken === this.detailRequestToken) {
-                    this.isSaving = false;
-                    alert("请求错误: " + error);
-                }
-                return false;
-            });
+            }
+            if (canonical.source_revision) this.editingData.source_revision = canonical.source_revision;
+            this.editingRevision = this.editingData.source_revision;
+            if (canonical.resource_folder !== undefined) {
+                this.lastPersistedResourceFolder = String(canonical.resource_folder || '').trim();
+            }
+            const oldListId = this.activeCard.id;
+            if (canonicalId !== cardId) {
+                this.editingData.id = pending.cardId = canonicalId;
+                const filename = canonicalId.split('/').pop();
+                this.activeCard.filename = filename;
+                if (!draft.dirtyFields().includes('filename')) this.editingData.filename = filename;
+                this.activeCard.image_url = (updated?.id === canonicalId && updated.image_url)
+                    || `/cards_file/${canonicalId.split('/').map(encodeURIComponent).join('/')}`;
+            }
+            if (res.new_id) this.activeCard.id = res.new_id;
+            if (updated) {
+                if (!this.activeCard.is_bundle) Object.assign(this.activeCard, updated);
+                else if (Array.isArray(updated.versions)) this.activeCard.versions = updated.versions;
+                window.dispatchEvent(new CustomEvent('card-updated', {
+                    detail: updated.id !== oldListId ? { ...updated, _old_id: oldListId } : updated,
+                }));
+            }
+            if (typeof autoSaver.rebaseBaseline === 'function') {
+                autoSaver.rebaseBaseline(this.editingData, [...acceptedFields, 'source_revision', 'id'], {
+                    ...snapshot.values, ...canonical, id: this.editingData.id,
+                    source_revision: this.editingData.source_revision,
+                });
+            } else autoSaver.initBaseline(this.editingData);
+            this.$store.global.showToast("保存成功", 2000, "settings-save");
+            // Full refresh is only needed for canonical body/structural changes, and must
+            // never replace a draft typed while the request was in flight.
+            if (bodyChanged && !draft.dirtyFields().length) pending.needsRefresh = true;
+            return true;
         },
 
         // 保存冲突（乐观锁 409）的统一处理：
         // 卡片文件已被其他组件/窗口改写时，直接让用户重试只会反复失败，
         // 这里给出「重新载入 / 用最新修订号覆盖保存」两个明确选项。
-        async handleSaveConflict(res) {
+        async handleSaveConflict(res, pending) {
             const conflict = res && (res.status === 409 || res.current_source_revision);
             if (!conflict) {
                 alert("保存失败: " + (res?.msg || '未知错误'));
@@ -2822,8 +2865,7 @@ export default function detailModal() {
             const latestRevision = String(res.current_source_revision || '').trim();
             // 只自动重试一次：若磁盘在两次保存之间又被改写，继续自动重试会变成
             // 「覆盖别人刚写入的内容」，这里交回用户显式决定。
-            const alreadyRetried = this._saveConflictRetried === true;
-            this._saveConflictRetried = false;
+            const alreadyRetried = pending.retried;
 
             const confirmReload = confirm(
                 '保存失败：角色卡文件已在其他窗口或编辑器中被修改。\n\n'
@@ -2834,7 +2876,8 @@ export default function detailModal() {
             );
 
             if (confirmReload) {
-                await this.reloadActiveCardFromDisk();
+                pending.refreshed = this.reloadActiveCardFromDisk();
+                await pending.refreshed;
                 return false;
             }
 
@@ -2844,18 +2887,20 @@ export default function detailModal() {
                 this.editingRevision = latestRevision;
                 this.editingData.source_revision = latestRevision;
             }
-            this._saveConflictRetried = true;
-            return this.saveChanges();
+            pending.retried = true;
+            return this._internalSaveCard(pending);
         },
 
         // 与磁盘对齐：重新拉取详情并刷新基线，避免继续在旧修订号上保存。
         async reloadActiveCardFromDisk() {
             const cardId = this.editingData?.id || this.activeCard?.id;
-            if (!cardId) return;
-            this.editingRevision = '';
-            this.lastPersistedResourceFolder = '';
-            await this.refreshActiveCardDetail(cardId, { preserveDraft: false });
-            this.$store?.global?.showToast?.('已重新载入最新内容', 2200, 'refresh');
+            const editorToken = this.detailRequestToken;
+            if (await this._readActiveCardDetail(cardId, { preserveDraft: false })
+                && this.showDetail && this.detailRequestToken === editorToken) {
+                this.$store?.global?.showToast?.('已重新载入最新内容', 2200, 'refresh');
+                return true;
+            }
+            return false;
         },
 
         // === 图片与文件更新 ===
@@ -3474,17 +3519,25 @@ export default function detailModal() {
         switchVersion(versionId) {
             const versions = Array.isArray(this.activeCard?.versions) ? this.activeCard.versions : [];
             const ver = versions.find(v => v.id === versionId);
-            if (!ver) return;
-            this.isSaving = false;
-            saveSequence += 1;
+            if (!ver || !fieldDraft) return;
+            const switchToken = ++switchSequence;
+            if (this.isSaving || this.editingData.id === versionId) return;
 
-            const requestToken = ++this.detailRequestToken;
-            this.activeCard.image_url = `/cards_file/${encodeURIComponent(ver.id)}`;
-            this.activeCard.filename = ver.filename;
-
+            const draft = fieldDraft;
+            const editorToken = this.detailRequestToken;
+            const versionFields = [...CARD_FILE_FIELDS, 'ui_summary'];
+            const hasVersionEdits = () => draft.dirtyFields().some(field => versionFields.includes(field));
+            const confirmDiscard = () => confirm('当前版本还有未保存的修改，确定放弃并切换版本吗？');
+            if (hasVersionEdits() && !confirmDiscard()) return;
+            const confirmedVersions = { ...draft.versions };
             return getCardDetail(ver.id).then(res => {
-                if (requestToken !== this.detailRequestToken || !this.showDetail) return;
-                if (!res.success || !res.card) return;
+                if (switchToken !== switchSequence || editorToken !== this.detailRequestToken
+                    || !this.showDetail || this.isSaving || !fieldDraft) return;
+                if (!res?.success || !res.card) throw new Error(res?.msg || '角色卡版本载入失败');
+                // 请求期间还能继续编辑；先前的放弃确认不适用于后来输入的内容。
+                if (fieldDraft.dirtyFields().some(field => versionFields.includes(field)
+                    && (fieldDraft !== draft || fieldDraft.versions[field] !== confirmedVersions[field]))
+                    && !confirmDiscard()) return;
 
                 const c = res.card;
                 const previousEditingData = this.editingData || {};
@@ -3522,6 +3575,9 @@ export default function detailModal() {
                     : persistedResourceFolder;
 
                 // 版本切换需要以该版本的完整数据建立新快照，公共字段沿用聚合包值。
+                this.detailRequestToken += 1;
+                refreshInFlight = false;
+                this.detailLoadError = '';
                 this.editingData = this._normalizeEditingDataShape({
                     ...c,
                     id: c.id ?? ver.id,
@@ -3537,6 +3593,8 @@ export default function detailModal() {
 
                 this.activeCard.image_url = c.image_url || `/cards_file/${encodeURIComponent(ver.id)}`;
                 this.activeCard.filename = this.editingData.filename;
+                this.editingRevision = this.editingData.source_revision;
+                this.activeCard.source_revision = this.editingRevision;
                 this.activeCard.import_time = c.import_time || c.last_modified || this.activeCard.import_time;
                 this.activeCard.source_link = sharedSourceLink;
                 this.activeCard.resource_folder = sharedResourceFolder;
@@ -3552,14 +3610,19 @@ export default function detailModal() {
                 if (resourceFolderWasDirty) nextBaseline.resource_folder = previousBaseline.resource_folder;
                 this.originalDataJson = JSON.stringify(nextBaseline);
                 autoSaver.initBaseline(nextBaseline);
+            }).catch(error => {
+                if (switchToken === switchSequence && editorToken === this.detailRequestToken && this.showDetail) {
+                    this.$store?.global?.showToast?.(error?.message || '角色卡版本载入失败', 3200, 'close');
+                }
             });
         },
 
         setAsBundleCover(versionId) {
-            if(!confirm("将此版本设为最新（封面）？\n这将更新其修改时间。")) return;
-            
-            // 传入完整参数以匹配后端需求
-            apiSetAsBundleCover({
+            if (this.isSaving || !confirm("将此版本设为最新（封面）？\n这将更新其修改时间。")) return;
+            const oldId = this.activeCard.id;
+            const editorToken = this.detailRequestToken;
+            const switchToken = switchSequence;
+            return apiSetAsBundleCover({
                 id: versionId,
                 bundle_dir: this.activeCard.bundle_dir,
                 char_name: this.activeCard.char_name
@@ -3568,22 +3631,21 @@ export default function detailModal() {
                     this.$store.global.showToast("已设为封面", 3000, "check");
                     if (res.updated_card) {
                         const newBundle = res.updated_card;
-                        const ts = new Date().getTime();
-                        const oldId = this.activeCard.id;
-                        // 确保 URL 带时间戳
-                        if (res.new_image_url) {
-                            newBundle.image_url = res.new_image_url;
-                        } else {
-                            newBundle.image_url = `/cards_file/${encodeURIComponent(newBundle.id)}?t=${ts}`;
+                        newBundle.image_url = res.new_image_url
+                            || `/cards_file/${encodeURIComponent(newBundle.id)}?t=${Date.now()}`;
+                        const sameBundle = this.showDetail && this.activeCard.is_bundle
+                            && this.activeCard.bundle_dir === newBundle.bundle_dir;
+                        if (sameBundle) {
+                            // 聚合包的列表主键可以换成 B，但当前编辑和预览仍是 A，直到用户同意切换。
+                            this.activeCard = { ...this.activeCard, id: newBundle.id,
+                                versions: newBundle.versions || this.activeCard.versions };
                         }
-                        
-                        this.activeCard = newBundle;
-                        this.switchVersion(versionId); // 切换视图到新封面
-                        
-                        // 通知列表更新
                         window.dispatchEvent(new CustomEvent('card-updated', { 
                             detail: { ...newBundle, _old_id: oldId }
                         }));
+                        if (sameBundle && editorToken === this.detailRequestToken && switchToken === switchSequence) {
+                            return this.switchVersion(versionId);
+                        }
                     } else {
                         // 兜底刷新
                         window.dispatchEvent(new CustomEvent('refresh-card-list'));

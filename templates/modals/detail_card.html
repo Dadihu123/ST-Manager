@@ -4,7 +4,7 @@
 
 <!-- 详情页模态框 (Refactored) -->
 <div
-  x-show="showDetail"
+  :hidden="!showDetail"
   x-data="detailModal"
   x-cloak
   class="modal-overlay ui-modal-overlay ui-refresh-surface ui-detail-modal detail-card-overlay z-modal-std"
@@ -13,6 +13,7 @@
 >
   <div
     class="detail-modal detail-icon-scope detail-modal--workbench"
+    :class="{ 'detail-awaiting-draft': !hasDetailDraft }"
     x-ref="detailDialog"
     role="dialog"
     aria-modal="true"
@@ -22,6 +23,17 @@
     tabindex="-1"
     @click.stop
   >
+    <div class="detail-load-state">
+      <div :hidden="!detailLoading" class="detail-loading-banner" role="status">
+        {{ loading_icon('ui-icon--sm') }}<span>正在同步角色卡详情…</span>
+      </div>
+      <div :hidden="!detailLoadError" class="detail-error-banner" role="alert">
+        <span x-text="detailLoadError"></span>
+        <button type="button" class="detail-error-retry" @click="refreshActiveCardDetail(activeCard.id)"
+                aria-label="重新载入角色卡详情">重试</button>
+      </div>
+      <button type="button" class="btn-secondary" @click="requestClose()" aria-label="关闭角色卡详情">关闭</button>
+    </div>
     <!-- 左侧外悬浮：SKINS（不遮挡图片） -->
     <div
       class="detail-filmstrip-outside custom-scrollbar"
@@ -650,7 +662,7 @@
               <button
                 type="button"
                 @click="saveChanges()"
-                :disabled="isSaving"
+                :disabled="isSaving || !hasDetailDraft"
                 :aria-busy="isSaving.toString()"
                 class="btn-primary detail-action-btn detail-save-btn"
                 title="保存角色卡更改"
@@ -910,16 +922,7 @@
           <!-- 内容区：详情页唯一主滚动容器 -->
           <div class="detail-content custom-scrollbar">
             <div
-              x-show="detailLoading"
-              class="detail-loading-banner"
-              role="status"
-              aria-live="polite"
-            >
-              {{ loading_icon('ui-icon--sm') }}
-              <span>正在同步角色卡详情…</span>
-            </div>
-            <div
-              x-show="detailLoadError"
+              x-show="hasDetailDraft && detailLoadError"
               class="detail-error-banner"
               role="alert"
             >
@@ -930,7 +933,7 @@
               <button
                 type="button"
                 class="detail-error-retry"
-                @click="refreshActiveCardDetail(activeCard.id)"
+                @click="refreshActiveCardDetail(editingData.id)"
                 aria-label="重新载入角色卡详情"
               >
                 {{ icon('refresh', 'ui-icon--sm') }}
@@ -2174,8 +2177,8 @@
             aria-labelledby="detail-tab-wi"
             tabindex="0"
           >
+            <template x-if="showDetail && hasDetailDraft && hasOpenedWorldbook">
             <div class="detail-tab-scroll custom-scrollbar">
-              <!-- 直接复用现有 WI 容器与内部逻辑（未删任何方法/字段） -->
               <div class="wi-container wi-worldbook-icon-scope" x-data="{ wiOpen: true }">
                 <input aria-label="来源链接"
                   type="file"
@@ -2382,9 +2385,8 @@
                           </div>
                         </div>
 
+                        <template x-if="expanded">
                         <div
-                          x-show="expanded"
-                          x-collapse
                           class="p-3 border-t space-y-3"
                           style="
                             border-color: var(--border-default);
@@ -2471,11 +2473,12 @@
                             </div>
                           </div>
                         </div>
+                        </template>
                       </div>
                     </template>
 
                     <div
-                      x-show="getDefaultSortedWIEntries().length === 0"
+                      x-show="getWorldInfoCount() === 0"
                       class="detail-empty-state text-center py-8 color-text-muted border border-dashed color-border-default rounded-lg"
                     >
                       <span class="detail-empty-state-icon" aria-hidden="true">{{ icon('book-closed', 'ui-icon--md') }}</span>
@@ -2522,6 +2525,7 @@
                 </div>
               </div>
             </div>
+            </template>
           </section>
 
           <section

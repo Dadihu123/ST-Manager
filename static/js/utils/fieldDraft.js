@@ -126,6 +126,8 @@ export function createFieldDraft(source, notify = () => {}) {
                 versions: { ...versions } };
         },
         accept(snapshot, canonical = {}) {
+            // 从与 x-model 相同的响应式入口写回，才能让 x-for 里的条目引用一起更新。
+            const editor = typeof Alpine !== 'undefined' && Alpine.reactive ? Alpine.reactive(data) : data;
             muted = true;
             try {
                 const accepted = new Set([...Object.keys(snapshot.values),
@@ -133,7 +135,8 @@ export function createFieldDraft(source, notify = () => {}) {
                 for (const field of accepted) {
                     const value = Object.hasOwn(canonical, field) ? canonical[field] : snapshot.values[field];
                     // New input is retained; the submitted value remains the disk baseline.
-                    if ((versions[field] || 0) === (snapshot.versions[field] || 0)) data[field] = clone(value);
+                    if ((versions[field] || 0) === (snapshot.versions[field] || 0)
+                        && Object.hasOwn(canonical, field)) editor[field] = clone(value);
                     baseline[field] = clone(value);
                     pending.add(field);
                 }

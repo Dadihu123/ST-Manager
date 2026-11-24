@@ -928,6 +928,21 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-visual-header 
   padding: clamp(1rem, 1.8vw, 1.5rem);
 }
 
+.ui-detail-modal .detail-load-state {
+  margin: auto;
+  max-width: 100%;
+  padding: 1rem;
+  text-align: center;
+}
+
+.ui-detail-modal.detail-card-overlay[hidden],
+.ui-detail-modal .detail-modal:not(.detail-awaiting-draft) > .detail-load-state,
+.ui-detail-modal .detail-load-state > [hidden],
+.ui-detail-modal .detail-modal--workbench.detail-awaiting-draft > .detail-modal-inner,
+.ui-detail-modal .detail-modal--workbench.detail-awaiting-draft > .detail-filmstrip-outside {
+  display: none !important;
+}
+
 .ui-detail-modal .detail-modal--workbench .detail-loading-banner,
 .ui-detail-modal .detail-modal--workbench .detail-error-banner {
   align-items: center;

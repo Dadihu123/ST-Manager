@@ -38,7 +38,7 @@ def run_detail_modal_runtime_check(script_body):
           ? globalThis.__exportCardJson(...args)
           : true;
         const sendToSillyTavern = async () => ({{ success: true }});
-        const apiSetAsBundleCover = async () => ({{ success: true }});
+        const apiSetAsBundleCover = async payload => globalThis.__setAsBundleCover?.(payload) || ({{ success: true }});
         const apiConvertToBundle = async () => ({{ success: true }});
         const apiToggleBundleMode = async () => ({{ success: true }});
         const listChats = (...args) => globalThis.__listChats ? globalThis.__listChats(...args) : Promise.resolve({{ success: true, items: [] }});
@@ -105,6 +105,7 @@ def run_detail_modal_runtime_check(script_body):
           'data:text/javascript,' + encodeURIComponent(stubs + source + '\\nexport default detailModal;'),
         );
         const modal = module.default();
+        modal.showDetail = true;
         modal.$nextTick = (fn) => {{ if (typeof fn === 'function') fn(); }};
 
         {textwrap.dedent(script_body)}
@@ -312,7 +313,7 @@ def test_detail_modal_runtime_conflict_offers_reload_or_retry_with_latest_revisi
         modal.$store = { global: { showToast() {}, setTagTaxonomy() {} } };
 
         const refreshed = [];
-        modal.refreshActiveCardDetail = (cardId) => { refreshed.push(cardId); };
+        modal._readActiveCardDetail = (cardId) => { refreshed.push(cardId); return true; };
         modal.activeCard = { id: 'hero.png', is_bundle: false };
         modal.editingData = {
           ...modal._normalizeEditingDataShape({}),
@@ -345,7 +346,6 @@ def test_detail_modal_runtime_conflict_offers_reload_or_retry_with_latest_revisi
         // 选「确定」= 重新载入
         callCount = 0;
         confirmAnswer = true;
-        modal._saveConflictRetried = false;
         modal.editingRevision = '300:3';
         modal.editingData.source_revision = '50:1';
         modal.editingData.ui_summary = 'second draft';
@@ -367,7 +367,6 @@ def test_detail_modal_runtime_conflict_offers_reload_or_retry_with_latest_revisi
             current_source_revision: '400:4',
           };
         };
-        modal._saveConflictRetried = false;
         modal.editingRevision = '100:1';
         modal.editingData.source_revision = '100:1';
         modal.editingData.ui_summary = 'keep conflicting draft';

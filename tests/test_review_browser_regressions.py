@@ -131,6 +131,80 @@ def test_native_back_does_not_create_history_entries(page):
     }""")
 
 
+def test_detail_worldbook_mounts_on_demand_and_saves_the_visible_entry(page):
+    from flask import Flask, render_template
+
+    app = Flask(__name__, template_folder=str(ROOT / 'templates'))
+    with app.test_request_context():
+        page.set_content(render_template('modals/detail_card.html'))
+    page.add_style_tag(url='/static/css/modules/detail-card-workbench.css')
+    page.evaluate("""async () => {
+      const component = (await import('/static/js/components/detailModal.js')).default;
+      const overlay = document.querySelector('.detail-card-overlay');
+      const dialog = overlay.querySelector('.detail-modal'), inner = dialog.querySelector('.detail-modal-inner');
+      const status = dialog.querySelector('.detail-load-state'), panel = inner.querySelector('#detail-panel-wi');
+      const code = inner.querySelector('.detail-save-btn');
+      inner.replaceChildren(panel, code); dialog.replaceChildren(status, inner); overlay.replaceChildren(dialog);
+      window.card = { id:'a.png', filename:'a.png', char_name:'A', tags:[], description:'old',
+        character_book: {name:'book', entries:Array.from({length:12}, (_, id)=>({id, content:'old entry', keys:[]}))} };
+      window.fetch = async (url, opts) => {
+        if (url === '/api/get_card_detail') {
+          if (window.delayDetail) await new Promise(r => {window.releaseDetail = r});
+          return Response.json({success:true, card});
+        }
+        if (url === '/api/update_card') {
+          const payload = JSON.parse(opts.body);
+          window.sentBook = payload.character_book;
+          if (window.delaySave) await new Promise(r => {window.releaseSave = r});
+          return Response.json({success:true, new_id:card.id, new_filename:card.filename,
+            updated_card:{id:card.id}, canonical_fields_id:card.id, canonical_ui:{id:card.id},
+            canonical_fields:{character_book:{...card.character_book,
+              entries:card.character_book.entries.map(e=>({...e,content:'server entry'}))}}});
+        }
+        throw new Error('Unexpected request: '+url);
+      };
+      document.addEventListener('alpine:init', () => {
+        Alpine.store('global',{settingsForm:{},deviceType:'desktop',loadTagViewPrefs:()=>({}),showToast(){}});
+        Alpine.data('detailModal',component);
+      },{once:true});
+    }""")
+    page.add_script_tag(url='/static/lib/alpine.js')
+    page.evaluate("""() => {window.m = Alpine.$data(document.querySelector('.detail-card-overlay'));
+      window.delayDetail=true; m.openDetail({id:card.id,filename:card.filename});}""")
+    page.wait_for_function("window.releaseDetail && m.detailLoading")
+    inner = page.locator('.detail-modal-inner')
+    assert not inner.is_visible()
+    page.evaluate("window.delayDetail=false; releaseDetail()")
+    page.wait_for_function("m.hasDetailDraft && !m.detailLoading")
+    rows = page.locator('#detail-panel-wi [x-data*="expanded"]')
+    field = rows.first.locator('textarea')
+    assert rows.count() == 0
+    page.evaluate("m.selectDetailTab('wi')")
+    assert rows.count() == 12
+    assert field.count() == 0
+    rows.first.locator('[class*="cursor-pointer"][class*="select-none"]').click()
+    assert field.input_value() == 'old entry'
+    page.evaluate("""() => {m.editingData.description='submitted'; window.delaySave=true;
+      window.saving=m.saveChanges(); m.editingData.description='newer input';}""")
+    page.wait_for_function("typeof window.releaseSave === 'function'")
+    page.evaluate("window.delaySave=false; releaseSave()")
+    assert page.evaluate("() => saving")
+    assert field.input_value() == 'server entry'
+    field.fill('typed into the visible row')
+    assert page.evaluate("() => m.saveChanges()")
+    assert page.evaluate("sentBook.entries[0].content") == 'typed into the visible row'
+
+    # A delayed hide callback from closing the previous card must not hide the reopened editor.
+    page.wait_for_function("!m.hasUnsavedChanges")
+    page.evaluate("m.requestClose()")
+    page.wait_for_function("!m.showDetail && !document.querySelector('#detail-panel-wi textarea')")
+    page.evaluate("m.openDetail({id:card.id,filename:card.filename})")
+    page.wait_for_function("m.hasDetailDraft && !m.detailLoading")
+    page.wait_for_timeout(350)
+    assert inner.is_visible() and not page.locator('.detail-load-state').is_visible()
+    assert rows.count() == 0
+
+
 def test_real_editors_keep_unsaved_changes_and_close_child_first(page):
     result = page.evaluate("""async () => {
       const layout = (await import('/static/js/components/layout.js')).default();

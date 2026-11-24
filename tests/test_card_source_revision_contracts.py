@@ -61,12 +61,12 @@ def test_detail_modal_absorbs_external_card_updates_and_conflicts():
 
     assert "window.addEventListener('card-updated'" in detail_source
     assert '_absorbExternalCardUpdate(' in detail_source
-    assert 'async handleSaveConflict(res) {' in detail_source
-    assert 'await this.reloadActiveCardFromDisk();' in detail_source
     # The narrow save must omit untouched UI fields; exercise both preserve and explicit-clear paths.
     from test_detail_modal_advanced_editor_contracts import (
+        test_detail_modal_runtime_conflict_offers_reload_or_retry_with_latest_revision,
         test_detail_modal_runtime_save_sends_clear_ui_fields_only_when_unbound,
     )
+    test_detail_modal_runtime_conflict_offers_reload_or_retry_with_latest_revision()
     test_detail_modal_runtime_save_sends_clear_ui_fields_only_when_unbound()
 
 

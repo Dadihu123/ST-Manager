@@ -62,6 +62,98 @@ def write_png(path, book=None):
     assert write_card_metadata(str(path), {'spec': 'chara_card_v3', 'spec_version': '3.0', 'data': data})
 
 
+@pytest.mark.parametrize('keep_leader', [False, True])
+def test_rename_bundle_version_keeps_editor_and_remarks_on_the_actual_file(isolated_library, tmp_path, keep_leader):
+    client, root, db, cache, _, _ = isolated_library
+    leader, old, new = 'bundle/main.png', 'bundle/old.png', 'bundle/renamed.png'
+    (root / 'bundle' / '.bundle').touch()
+    for card_id in (leader, old):
+        write_png(root / card_id)
+    with closing(sqlite3.connect(db)) as conn:
+        conn.execute("UPDATE card_metadata SET category='bundle' WHERE id LIKE 'bundle/%'")
+        if keep_leader:
+            stamp = (root / leader).stat().st_mtime + 3600
+            os.utime(root / leader, (stamp, stamp))
+            conn.execute('UPDATE card_metadata SET last_modified=? WHERE id=?', (stamp, leader))
+        conn.commit()
+    response = client.post('/api/update_card', json={
+        'id': old, 'version_id': old, 'new_filename': 'renamed.png', 'save_ui_to_bundle': True,
+        'bundle_dir': 'bundle', 'source_link': 'keep', 'resource_folder': 'shared',
+        **({'ui_summary': 'old note kept'} if keep_leader else {}),
+        'char_name': 'Hero', 'description': 'renamed body',
+    }).get_json()
+    assert response['success'], response
+    assert (root / new).is_file() and not (root / old).exists()
+    assert response['canonical_ui']['id'] == new
+    assert response['canonical_ui']['source_revision'] == build_file_source_revision(root / new)
+    assert response['new_id'] == (leader if keep_leader else new)
+    assert response['current_version_id'] == (new if keep_leader else None)
+    versions = {item['id']: item for item in response['updated_card']['versions']}
+    assert set(versions) == {leader, new}
+    expected_note = 'old note kept' if keep_leader else 'old'
+    assert versions[leader]['ui_summary'] == 'original' and versions[new]['ui_summary'] == expected_note
+
+    # Drive the actual editor with the response: change the filename again in flight, cancel that
+    # next change, and save a note without closing the modal. Verify the resulting real HTTP write.
+    payload_file = tmp_path / 'next.json'
+    detail = client.post('/api/get_card_detail', json={'id': new}).get_json()
+    assert detail['success'] and detail['card']['ui_summary'] == expected_note
+    run_detail_modal_runtime_check('const response = ' + json.dumps(response)
+        + '; const disk = ' + json.dumps(detail) + '; const target = ' + json.dumps(str(payload_file)) + ';' + """
+const assert = (ok, msg) => { if (!ok) throw Error(msg); };
+modal.$store = {global:{showToast(){},setTagTaxonomy(){}}}; modal.ensureVisibleDetailTab = () => {}; modal.startAutoSave = () => {};
+modal.activeCard = {id:'bundle/main.png',is_bundle:true,bundle_dir:'bundle',image_url:'/cards_file/bundle/old.png'};
+modal.editingData = modal._normalizeEditingDataShape({id:'bundle/old.png',filename:'old.png',ui_summary:'old'});
+modal.originalDataJson = JSON.stringify(modal.editingData);
+let finishWrite, finishRead, readId, next, event;
+window.dispatchEvent = e => { if (e.type === 'card-updated') event = e.detail; };
+globalThis.__updateCard = () => new Promise(resolve => { finishWrite = resolve; });
+globalThis.__getCardDetail = id => new Promise(resolve => { readId=id; finishRead=resolve; });
+modal.editingData.filename = 'renamed.png';
+const saving = modal.saveChanges();
+const waiting = modal.refreshActiveCardDetail('bundle/old.png');
+modal.editingData.filename = 'another rename.png';
+finishWrite(response);
+assert(await saving, 'rename did not save');
+assert(modal.editingData.id === 'bundle/renamed.png' && readId === modal.editingData.id, 'queued refresh must follow the rename');
+assert(modal.activeCard.id === response.new_id && event.id === response.new_id, 'grid and editor use separate identities');
+assert(modal.activeCard.image_url.includes('renamed.png') && modal.activeCard.filename === 'renamed.png',
+  'preview must use the renamed file even if a sibling is still cover');
+assert(modal.activeCard.versions.map(v => v.id).sort().join() === 'bundle/main.png,bundle/renamed.png', 'version bar still has old ID');
+finishRead(disk); assert(await waiting, 'renamed detail should be readable: ' + modal.detailLoadError);
+assert(modal.editingData.filename === 'another rename.png' && modal.hasUnsavedChanges, 'second in-flight edit was lost');
+modal.editingData.filename = 'renamed.png';
+assert(!modal.hasUnsavedChanges, 'reverting the second rename should restore the persisted baseline');
+modal.editingData.ui_summary = 'next note';
+globalThis.__updateCard = async payload => {next = payload; return {success:true, canonical_ui:{id:payload.id,ui_summary:'next note'}};};
+assert(await modal.saveChanges(), 'subsequent note save failed');
+assert(next.id === 'bundle/renamed.png' && next.version_id === next.id && next.ui_only === true, 'next save targeted stale file');
+const {writeFileSync} = await import('node:fs'); writeFileSync(target, JSON.stringify(next));
+""")
+    followup = client.post('/api/update_card', json=json.loads(payload_file.read_text())).get_json()
+    assert followup['success'], followup
+    notes = ui_store.load_ui_data()['bundle']['_version_remarks']
+    assert old not in notes
+    assert notes[new] == {'summary': 'next note', 'extension': True}
+    assert notes[leader]['summary'] == 'original'
+    assert client.post('/api/get_card_detail', json={'id': leader}).get_json()['card']['ui_summary'] == 'original'
+
+
+def test_rejected_bundle_rename_leaves_the_original_body_and_remarks_untouched(isolated_library):
+    client, root, *_ = isolated_library
+    old, existing = 'bundle/old.png', 'bundle/main.png'
+    for card_id in (old, existing):
+        write_png(root / card_id)
+    content = (root / old).read_bytes()
+    result = client.post('/api/update_card', json={
+        'id': old, 'version_id': old, 'new_filename': 'main.png', 'save_ui_to_bundle': True,
+        'bundle_dir': 'bundle', 'description': 'must not be written', 'ui_summary': 'must not replace old note',
+    }).get_json()
+    assert not result['success'] and '已存在' in result['msg']
+    assert (root / old).read_bytes() == content
+    assert ui_store.load_ui_data()['bundle']['_version_remarks'][old] == {'summary': 'old', 'extension': True}
+
+
 @pytest.mark.parametrize('old_book', ['OldBook', None])
 @pytest.mark.parametrize('cold', [False, True])
 def test_nonleader_shared_binding_reconciles_matching_owner_files(isolated_library, old_book, cold):
